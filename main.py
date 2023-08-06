@@ -6,6 +6,7 @@ import numpy as np
 from minigrid.manual_control import ManualControl
 from minigrid_wrappers import ObjectsLocationWrapper, OnlyImageObservation
 from bp_gym import BPGymEnv
+from create_environment import create_environment
 def main():
 
     env = gym.make("MiniGrid-BlockedUnlockPickup-v0", render_mode="human")
@@ -25,11 +26,15 @@ def main():
 
 
 def main2():
-    env = gym.make("MiniGrid-BlockedUnlockPickup-v0", render_mode="human")
-    env = FullyObsWrapper(env)
-    env = ObjectsLocationWrapper(env, print_location=True)
-    env = OnlyImageObservation(env)
-    env = BPGymEnv(env, add_strategies=True, as_image=True, axis=2)
+    # env = gym.make("MiniGrid-BlockedUnlockPickup-v0", render_mode="human")
+    # env = FullyObsWrapper(env)
+    # env = ObjectsLocationWrapper(env, print_location=True)
+    # env = OnlyImageObservation(env)
+    # env = BPGymEnv(env, add_strategies=True, as_image=True, axis=2)
+    # print(env.observation_space)
+    # env = ManualControl(env)
+
+    env = create_environment(add_strategies=True, render_mode="human")
     env = ManualControl(env)
     env.start()
 

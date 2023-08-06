@@ -115,19 +115,61 @@ def level():
 	level 1 - after picking up ball
 	level 2 - after dropping ball in a different location
 	level 3 - after picking up the key
-	level 4 - after toggle the door
-	level 5 - after drop the key
+	level 4 - after unlocking the door
+	level 5 - after opening door
+	level 6 - after moving through the door, going into the box room
+	level 7 - after drop the key in the box room
 	"""
 
 	name = "level"
+	level = 0
 	space = get_new_space()
-	update_strategy(name,space)
-	print("level bt info: ", info)
+	initial_ball_pos = info["objects_location"]["ball"]
 	while True:
+		print("Current Level: ", level)
+		space.fill(level)
+		update_strategy(name, space)
+
 		action = yield {waitFor: pred_all_events}
-		action = int(action.name)
+		# action = int(action.name)
 		
-		print("bt info: ", info)
+		
+		ball_pos = info["objects_location"]["ball"]
+		key_pos = info["objects_location"]["key"]
+		door_pos = info["objects_location"]["door"]
+		door_state = info["objects_location"]["door_state"]
+		agent_pos = info["objects_location"]["agent"]
+
+		if door_state!= 2: # Door was already unlocked
+			if door_pos is None or door_pos[0] <= agent_pos[0]: # I am right to the door or at the door
+				level = 7
+			elif ball_pos and ball_pos == initial_ball_pos: # I am not in the box room and I ball is blocking the door
+				level = 0
+			elif door_state == 0: #Open door
+				if ball_pos is None or key_pos is None:
+					level = 5
+				else:
+					level = 6
+			elif door_state == 1: #Unlocked but not open door
+				level = 4
+
+			if level == 7 and key_pos and ball_pos: # I am in the box room and I dropped the key and the ball
+				level = 8
+			continue
+
+		if ball_pos:
+			if ball_pos == initial_ball_pos:
+				level = 0
+			else:
+				level = 2
+		else:
+			level = 1
+
+		if level == 2 and not key_pos:
+			level = 3
+
+
+
 
 
 strategies_bts = [ 

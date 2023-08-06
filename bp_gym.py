@@ -65,7 +65,7 @@ class BPGymEnv(ObservationWrapper):
             bp_obs = self._get_bp_observation()
             observation = self._concat_observations(observation, bp_obs)
             # print("Observation",observation)
-    
+
         return observation, reward, terminated, truncated, info 
     
     
