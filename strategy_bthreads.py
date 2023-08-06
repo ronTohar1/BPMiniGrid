@@ -126,7 +126,7 @@ def level():
 	space = get_new_space()
 	initial_ball_pos = info["objects_location"]["ball"]
 	while True:
-		print("Current Level: ", level)
+		# print("Current Level: ", level)
 		space.fill(level)
 		update_strategy(name, space)
 
