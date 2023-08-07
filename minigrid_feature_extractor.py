@@ -8,11 +8,11 @@ class MinigridFeaturesExtractor(BaseFeaturesExtractor):
         super().__init__(observation_space, features_dim)
         n_input_channels = observation_space.shape[0]
         self.cnn = nn.Sequential(
-            nn.Conv2d(n_input_channels, 16, (2, 2)),
+            nn.Conv2d(n_input_channels, 16, (2, 2), padding="same"),
             nn.ReLU(),
-            nn.Conv2d(16, 32, (2, 2)),
+            nn.Conv2d(16, 32, (2, 2),padding="same"),
             nn.ReLU(),
-            nn.Conv2d(32, 64, (2, 2)),
+            nn.Conv2d(32, 64, (2, 2),padding="same"),
             nn.ReLU(),
             nn.Conv2d(64, 128, (2, 2)),
             nn.ReLU(),

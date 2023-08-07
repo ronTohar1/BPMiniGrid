@@ -6,6 +6,7 @@ from minigrid_feature_extractor import MinigridFeaturesExtractor
 import gymnasium as gym
 from bp_gym import BPGymEnv
 from create_environment import create_environment
+from sb3_contrib import RecurrentPPO
 
 from stable_baselines3.common.env_util import make_vec_env
 import argparse
@@ -15,13 +16,16 @@ def train():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--add_bp","-bp", action="store_true", help="Add BP strategies to the environment")
-
+    parser.add_argument("--name_addition","--name", type=str, default="", help="Addition to the model name")
     args = parser.parse_args()
+
+
     add_strategies = args.add_bp
     num_episodes = 1_000_000
     verbose=0
     num_cpus = 4
 
+    name = args.name_addition
 
     # env = create_environment(add_strategies=add_strategies)
     eval_env = create_environment(add_strategies=add_strategies)
@@ -32,13 +36,15 @@ def train():
     gamma = 0.99
     ls = 10000
     bs = 32
-    model = DQN
+    model = RecurrentPPO
     tf=10_0000000
     explore_frac = 0.7
     model_name = model.__name__+ f'_lr{lr}_gamma{gamma}_ls{ls}_bs{bs}_steps{num_episodes/1000000}_tf{tf}_expfrac{explore_frac}'
+    model_name += name
     model_name += "_BP" if add_strategies else "_NOBP"
 
-    policy = "CnnPolicy"
+    # policy = "CnnPolicy"
+    policy = "CnnLstmPolicy"
     model_path = "./models/" + model_name
     log_path = "./logs/"
     
@@ -51,17 +57,22 @@ def train():
         features_extractor_class=MinigridFeaturesExtractor,
         features_extractor_kwargs=dict(features_dim=512),
     )
-    agent = DQN(policy, env, verbose=verbose, tensorboard_log="./tensorboard/",
-                policy_kwargs=policy_kwargs, exploration_fraction=explore_frac
-                )# learning_rate=lr,
-                # buffer_size=15000,
-                # learning_starts=ls,
-                # batch_size=bs,
-                # gamma=gamma,
-                # train_freq=tf,
-                # gradient_steps=1,
-                # target_update_interval=50,)
+    # agent = DQN(policy, env, verbose=verbose, tensorboard_log="./tensorboard/",
+    #             policy_kwargs=policy_kwargs, exploration_fraction=explore_frac,
+    #             learning_rate=lr,
+    #             buffer_size=15000,
+    #             learning_starts=ls,
+    #             batch_size=bs,
+    #             gamma=gamma,
+    #             train_freq=tf,
+    #             gradient_steps=1,
+    #             target_update_interval=50,)
+
+    # agent = DQN(policy, env, verbose=verbose, tensorboard_log="./tensorboard/",)
+    # agent = A2C(policy, env, verbose=verbose, tensorboard_log="./tensorboard/",)
+    # agent = PPO(policy, env, verbose=verbose, tensorboard_log="./tensorboard/",)
     
+    agent = RecurrentPPO(policy, env, verbose=verbose, tensorboard_log="./tensorboard/",)
     agent.learn(num_episodes, callback=eval_callback, log_interval=100, tb_log_name=model_name)
 
 if __name__ == '__main__':

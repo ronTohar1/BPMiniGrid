@@ -161,7 +161,10 @@ def how_far_from_next_objective():
 		box_pos = info["objects_location"]["box"]
 
 		if level ==8 or level == 7 or level == 6: # I am right to the door or the door is open
-			distance = get_distance(agent_pos, box_pos)
+			if box_pos:
+				distance = get_distance(agent_pos, box_pos)
+			else:
+				distance = 0
 		if level == 5: # I am not in the box room and I have not dropped the key or the ball, but door is open
 			distance = get_distance(agent_pos, box_pos)
 		if level == 4: # I am not in the box and door is unlocked, but not open.
