@@ -14,6 +14,8 @@ class MinigridFeaturesExtractor(BaseFeaturesExtractor):
             nn.ReLU(),
             nn.Conv2d(32, 64, (2, 2)),
             nn.ReLU(),
+            nn.Conv2d(64, 128, (2, 2)),
+            nn.ReLU(),
             nn.Flatten(),
         )
 

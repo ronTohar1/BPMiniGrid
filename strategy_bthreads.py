@@ -74,106 +74,115 @@ def request_all_moves():
 ####################################################################
 ####################################################################
 
-# @b_thread
-# def slow_when_blocked():
-# 	name = "slow_when_blocked"
-# 	space = get_new_space()
 
-# 	update_strategy(name,space)
-# 	threshold = 2
-# 	while True:
-# 		action = yield {waitFor: pred_all_events}
-# 		action = int(action.name)
-# 		presence = state[0]
-# 		ego_index = (len(presence)//2, len(presence)//2)
-# 		other_vehicles = []
-# 		for i in range(len(presence)):
-# 			for j in range(len(presence)):
-# 				if presence[i][j] == 1 and (i,j) != ego_index:
-# 					other_vehicles.append((i,j))
-# 		is_close_vehicle_front = False
+def get_level(info, initial_ball_pos):
+	ball_pos = info["objects_location"]["ball"]
+	key_pos = info["objects_location"]["key"]
+	door_pos = info["objects_location"]["door"]
+	door_state = info["objects_location"]["door_state"]
+	agent_pos = info["objects_location"]["agent"]
 
+	if door_state!= 2: # Door was already unlocked
+		if door_pos is None or door_pos[0] <= agent_pos[0]: # I am right to the door or at the door
+			level = 7
+		elif ball_pos and ball_pos == initial_ball_pos: # I am not in the box room and ball is blocking the door
+			level = 0
+		elif door_state == 0: #Open door
+			if ball_pos is None or key_pos is None: # I am not in the box room and I have not dropped the key or the ball
+				level = 5
+			else:
+				level = 6
+		elif door_state == 1: #Unlocked but not open door
+			level = 4
 
-# 		for vehicle in other_vehicles:
-# 			# check if vehicle is on our lane and in front of us and close enough
-# 			if vehicle[0] == ego_index[0] and  vehicle[1] > ego_index[1] and np.abs(vehicle[1] - ego_index[1]) <= threshold:
-# 				is_close_vehicle_front = True
-# 				break		
+		if level == 7 and key_pos and ball_pos: # I am in the box room and I dropped the key and the ball
+			level = 8
+		return level
 
-# 		if is_close_vehicle_front:
-# 			space.fill(1)
-# 		else:
-# 			space.fill(0)
-			
-# 		update_strategy(name, space)
+	if ball_pos:
+		if ball_pos == initial_ball_pos:
+			level = 0
+		else:
+			level = 2
+	else:
+		level = 1
 
+	if level == 2 and not key_pos:
+		level = 3
+
+	return level
+
+def get_distance(pos1, pos2):
+	return np.abs(pos1[0] - pos2[0]) + np.abs(pos1[1] - pos2[1])
 
 @b_thread
 def level():
-	"""This bthread just updates the level of the game
-	level 0 - start of episode
-	level 1 - after picking up ball
-	level 2 - after dropping ball in a different location
-	level 3 - after picking up the key
-	level 4 - after unlocking the door
-	level 5 - after opening door
-	level 6 - after moving through the door, going into the box room
-	level 7 - after drop the key in the box room
-	"""
-
 	name = "level"
 	level = 0
 	space = get_new_space()
 	initial_ball_pos = info["objects_location"]["ball"]
 	while True:
-		# print("Current Level: ", level)
 		space.fill(level)
 		update_strategy(name, space)
 
 		action = yield {waitFor: pred_all_events}
 		# action = int(action.name)
+		level =	get_level(info, initial_ball_pos)
+	
+			
+
+
+
 		
 		
+
+@b_thread
+def how_far_from_next_objective():
+	name = "objective_distance"
+	level = 0
+	space = get_new_space()
+	initial_ball_pos = info["objects_location"]["ball"]
+	agent_pos = info["objects_location"]["agent"]
+
+	distance = get_distance(agent_pos, initial_ball_pos)
+	while True:
+		space.fill(distance)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+		# action = int(action.name)
+		level =	get_level(info, initial_ball_pos)
+
 		ball_pos = info["objects_location"]["ball"]
 		key_pos = info["objects_location"]["key"]
 		door_pos = info["objects_location"]["door"]
 		door_state = info["objects_location"]["door_state"]
 		agent_pos = info["objects_location"]["agent"]
+		box_pos = info["objects_location"]["box"]
 
-		if door_state!= 2: # Door was already unlocked
-			if door_pos is None or door_pos[0] <= agent_pos[0]: # I am right to the door or at the door
-				level = 7
-			elif ball_pos and ball_pos == initial_ball_pos: # I am not in the box room and I ball is blocking the door
-				level = 0
-			elif door_state == 0: #Open door
-				if ball_pos is None or key_pos is None:
-					level = 5
-				else:
-					level = 6
-			elif door_state == 1: #Unlocked but not open door
-				level = 4
+		if level ==8 or level == 7 or level == 6: # I am right to the door or the door is open
+			distance = get_distance(agent_pos, box_pos)
+		if level == 5: # I am not in the box room and I have not dropped the key or the ball, but door is open
+			distance = get_distance(agent_pos, box_pos)
+		if level == 4: # I am not in the box and door is unlocked, but not open.
+			distance = get_distance(agent_pos, door_pos)
+		if level == 3: # I am not in the box and I have the key
+			distance = get_distance(agent_pos, door_pos)
 
-			if level == 7 and key_pos and ball_pos: # I am in the box room and I dropped the key and the ball
-				level = 8
-			continue
+		if level == 2: # I am not in the box and the ball is not blocking the door
+			distance = get_distance(agent_pos, key_pos)
+		if level == 1: # I am not in the box and I have the ball
+			distance = get_distance(agent_pos, key_pos)
+		if level == 0: # I am not in the box and the ball is blocking the door
+			distance = get_distance(agent_pos, initial_ball_pos)
 
-		if ball_pos:
-			if ball_pos == initial_ball_pos:
-				level = 0
-			else:
-				level = 2
-		else:
-			level = 1
-
-		if level == 2 and not key_pos:
-			level = 3
-
-
-
+		# print("distance", distance)
+		# print("level", level)
 
 
 strategies_bts = [ 
 					level,	
+					how_far_from_next_objective
 					]
 
 def create_strategies():
