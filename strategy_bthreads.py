@@ -82,7 +82,7 @@ def get_level(info, initial_ball_pos):
 	door_state = info["objects_location"]["door_state"]
 	agent_pos = info["objects_location"]["agent"]
 
-	if door_state!= 2: # Door was already unlocked
+	if door_state is None or door_state!= 2: # Door was already unlocked
 		if door_pos is None or door_pos[0] <= agent_pos[0]: # I am right to the door or at the door
 			level = 7
 		elif ball_pos and ball_pos == initial_ball_pos: # I am not in the box room and ball is blocking the door
@@ -128,6 +128,7 @@ def level():
 		action = yield {waitFor: pred_all_events}
 		# action = int(action.name)
 		level =	get_level(info, initial_ball_pos)
+		# print("level: ", level)
 	
 			
 
@@ -183,9 +184,84 @@ def how_far_from_next_objective():
 		# print("level", level)
 
 
+
+#################################################################### 
+# Door key problem
+
+def doork_key_get_level(info):
+	# ball_pos = info["objects_location"]["ball"]
+	key_pos = info["objects_location"]["key"]
+	door_pos = info["objects_location"]["door"]
+	door_state = info["objects_location"]["door_state"]
+	agent_pos = info["objects_location"]["agent"]
+	level = 0
+
+	if door_state!= 2: # Door was already unlocked
+		if door_state == 0 or door_pos is None: # Open door (if None it means the agent is at the door)
+			level = 3
+		elif agent_pos[0] >= door_pos[0]: # I am right to the door or at the door
+			level = 3
+		elif door_state == 1 and agent_pos[0] < door_pos[0]: # Unlocked but not open door (and agent is left to the door)
+			level = 2
+	else:
+		if key_pos is None: # Holding Key
+			level = 1
+		else:
+			level = 0
+
+	return level
+
+@b_thread
+def door_key_level():
+	name = "door_key_level"
+	space = get_new_space()
+	level = 0
+	while True:
+		space.fill(level)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+		level = doork_key_get_level(info)
+
+@b_thread
+def door_key_how_far_from_next_objective():
+	name = "door_key_objective_distance"
+	space = get_new_space()
+	distance = 0
+	while True:
+		space.fill(distance)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+		level = doork_key_get_level(info)
+
+		# ball_pos = info["objects_location"]["ball"]
+		key_pos = info["objects_location"]["key"]
+		door_pos = info["objects_location"]["door"]
+		door_state = info["objects_location"]["door_state"]
+		agent_pos = info["objects_location"]["agent"]
+		goal_pos = info["objects_location"]["goal"]
+		if level == 3:
+			if goal_pos:
+				distance = get_distance(agent_pos, goal_pos)
+			else:
+				distance = 0
+		elif level == 2:
+			distance = get_distance(agent_pos, door_pos)
+		elif level == 1:
+			distance = get_distance(agent_pos, door_pos)
+		elif level == 0:
+			distance = get_distance(agent_pos, key_pos)
+
+		# print("distance", distance)
+		# print("level", level)
+
+
 strategies_bts = [ 
-					level,	
-					how_far_from_next_objective
+					door_key_level,
+					door_key_how_far_from_next_objective,
+					# level,	
+					# how_far_from_next_objective
 					]
 
 def create_strategies():

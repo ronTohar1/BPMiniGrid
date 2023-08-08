@@ -34,7 +34,8 @@ def main2():
     # print(env.observation_space)
     # env = ManualControl(env)
 
-    env = create_environment(add_strategies=True, render_mode="human")
+    env = create_environment(env_name="MiniGrid-DoorKey-5x5-v0",add_strategies=True, render_mode="human")
+    # env = create_environment(add_strategies=True, render_mode="human")
     env = ManualControl(env)
     env.start()
 

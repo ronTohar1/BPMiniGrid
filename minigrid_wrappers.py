@@ -43,8 +43,14 @@ class ObjectsLocationWrapper(ObservationWrapper):
         ball_loc = get_object_location(image,"ball")
         door_loc = get_object_location(image,"door")
         door_state = obs["image"][door_loc[0],door_loc[1],2] if door_loc is not None else None
-
-        return {"key": key_loc, "box": box_loc, "agent": agent_loc, "ball": ball_loc, "door": door_loc, "door_state": door_state}
+        goal_loc = get_object_location(image,"goal")
+        return {"key": key_loc, 
+                "box": box_loc,
+                "agent": agent_loc, 
+                "ball": ball_loc, 
+                "door": door_loc, 
+                "door_state": door_state,
+                "goal": goal_loc,}
 
 
 class OnlyImageObservation(ObservationWrapper):
