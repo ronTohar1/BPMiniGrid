@@ -22,20 +22,32 @@ def train():
 
 
     add_strategies = args.add_bp
-    num_episodes = 500_000
+    num_episodes = 10_000_000
+    size = 16
+    env_names = ["DoorKey","BlockedUnlockPickup"]
+    env_index = 0
+
+    if env_index == 1:
+        size = 11
+        
     verbose=0
     num_cpus = 6
     seed = 0
     name = args.name_addition
 
     def create():
-        return create_environment(add_strategies=add_strategies, env_name="MiniGrid-DoorKey-8x8-v0")
+        if env_index == 0:
+            return create_environment(add_strategies=add_strategies, env_name=f"MiniGrid-DoorKey-{size}x{size}-v0")
+        return create_environment(add_strategies=add_strategies, env_name=f"MiniGrid-{env_names[env_index]}-v0")
     eval_env = create()
 
     env = make_vec_env(create, n_envs=num_cpus, seed=50)
     # eval_env = make_vec_env(create, n_envs=1,seed=50)
 
-    lr = 0.000001
+    lr = 0.00001
+    net_arch = [256,256]
+    features_dim = 256
+
     gamma = 0.99
     ls = 100000
     bs = 32
@@ -44,7 +56,8 @@ def train():
     explore_frac = 0.4
     model_name = model.__name__
     # model_name += f'_lr{lr}_gamma{gamma}_ls{ls}_bs{bs}_steps{num_episodes/1000000}_tf{tf}_expfrac{explore_frac}'
-    model_name += name
+    model_name += f'_ep{num_episodes/1_000_000}M_lr{lr}_'
+    model_name += name + f'{size}x{size}_network{net_arch}_fd{features_dim}'
     model_name += "_BP" if add_strategies else "_NOBP"
 
     policy = "CnnPolicy" if args.agent != "rppo" else "CnnLstmPolicy"
@@ -58,8 +71,8 @@ def train():
 
     policy_kwargs = dict(
         features_extractor_class=MinigridFeaturesExtractor,
-        features_extractor_kwargs=dict(features_dim=512),
-        net_arch=[512,512],
+        features_extractor_kwargs=dict(features_dim=features_dim),
+        net_arch=net_arch,
     )
     # agent = DQN(policy, env, verbose=verbose, tensorboard_log="./tensorboard/",
     #             policy_kwargs=policy_kwargs, exploration_fraction=explore_frac,
@@ -73,7 +86,8 @@ def train():
     #             target_update_interval=500,)
 
 
-    agent = model(policy, env, verbose=verbose, tensorboard_log="./tensorboard/", policy_kwargs=policy_kwargs, seed=seed) 
+    agent = model(policy, env, verbose=verbose, tensorboard_log="./tensorboard/", policy_kwargs=policy_kwargs, seed=seed
+                  , learning_rate=lr) 
     agent.learn(num_episodes, callback=eval_callback, log_interval=1, tb_log_name=model_name)
 
 if __name__ == '__main__':
