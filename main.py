@@ -35,7 +35,7 @@ def main2():
     # env = ManualControl(env)
 
     env = create_environment(env_name="MiniGrid-DoorKey-8x8-v0",add_strategies=True, render_mode="human")
-    # env = create_environment(add_strategies=True, render_mode="human")
+    # env = gym.make("MiniGrid-DoorKey-8x8-v0", render_mode="human")
     env = ManualControl(env)
     env.start()
 

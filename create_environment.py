@@ -5,8 +5,9 @@ from bp_gym import BPGymEnv
 from stable_baselines3.common.monitor import Monitor
 from minigrid.wrappers import ImgObsWrapper
 
+from gymnasium.wrappers.frame_stack import FrameStack
 
-def create_environment(env_name="MiniGrid-BlockedUnlockPickup-v0", render_mode=None, add_strategies=True, vanilla=False):
+def create_environment(env_name="MiniGrid-BlockedUnlockPickup-v0", render_mode=None, add_strategies=True, vanilla=False, stack_frames=None):
     # env_name = "MiniGrid-DoorKey-8x8-v0"
     env = gym.make(env_name, render_mode=render_mode, max_episode_steps=5000)
     
@@ -23,5 +24,8 @@ def create_environment(env_name="MiniGrid-BlockedUnlockPickup-v0", render_mode=N
     env = ImgObsWrapper(env)
     env = BPGymEnv(env, add_strategies=add_strategies, as_image=True, axis=2)
     
+    if stack_frames:
+        env = FrameStack(env, stack_frames)
+        
     env = Monitor(env)
     return env

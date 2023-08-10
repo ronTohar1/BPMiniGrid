@@ -2,7 +2,8 @@ import minigrid
 from minigrid.wrappers import ImgObsWrapper
 from stable_baselines3 import PPO, DQN, A2C
 from stable_baselines3.common.callbacks import EvalCallback
-from minigrid_feature_extractor import MinigridFeaturesExtractor
+# from minigrid_feature_extractor import MinigridFeaturesExtractor
+from minigrid_feature_extractor_3d import MinigridFeaturesExtractor
 import gymnasium as gym
 from bp_gym import BPGymEnv
 from create_environment import create_environment
@@ -36,7 +37,7 @@ def train():
     num_cpus = 6
     seed = 0
     name = args.name_addition
-    frame_stack = None
+    frame_stack = 4
     def create():
         if env_index == 0:
             return create_environment(add_strategies=add_strategies, env_name=f"MiniGrid-DoorKey-{size}x{size}-v0", stack_frames=frame_stack)

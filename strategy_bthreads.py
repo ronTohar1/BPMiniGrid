@@ -257,9 +257,68 @@ def door_key_how_far_from_next_objective():
 		# print("level", level)
 
 
+
+@b_thread
+def dont_turn_back_and_forth():
+	name = "dont_turn_back_and_forth"
+	space = get_new_space()
+	# agent_pos = info["objects_location"]["agent"]
+	turned_right = False
+	turned_left = False
+	turned_back_and_forth = False
+	while True:
+		x = 1 if turned_back_and_forth else 0
+		turned_back_and_forth = False
+		space.fill(x)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+		action = int(action.name)
+
+		if (action == 1 and turned_left) or (action == 0 and turned_right):
+			turned_back_and_forth = True
+
+		turned_left, turned_right = False, False
+		if action == 0:
+			turned_left = True
+		elif action == 1:
+			turned_right = True
+
+		
+@b_thread
+def count_turns_in_direction():
+	name = "count_turns_in_direction"
+	space = get_new_space()
+	# agent_pos = info["objects_location"]["agent"]
+	turned_right = 0
+	turned_left = 0
+	while True:
+		max_turns = max(turned_right, turned_left)
+		val = min(4,max_turns)
+		space.fill(val)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+		action = int(action.name)
+
+		if action == 0:
+			turned_left += 1
+		elif action == 1:
+			turned_right += 1
+
+		if action != 1:
+			turned_right = 0
+		if action != 0:
+			turned_left = 0
+
+
+
+
 strategies_bts = [ 
 					door_key_level,
 					door_key_how_far_from_next_objective,
+					# dont_turn_back_and_forth,
+					# count_turns_in_direction
 					# level,	
 					# how_far_from_next_objective
 					]
