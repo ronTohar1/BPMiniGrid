@@ -258,44 +258,41 @@ def door_key_how_far_from_next_objective():
 
 
 
-@b_thread
-def dont_turn_back_and_forth():
-	name = "dont_turn_back_and_forth"
-	space = get_new_space()
-	# agent_pos = info["objects_location"]["agent"]
-	turned_right = False
-	turned_left = False
-	turned_back_and_forth = False
-	while True:
-		x = 1 if turned_back_and_forth else 0
-		turned_back_and_forth = False
-		space.fill(x)
-		update_strategy(name, space)
+# @b_thread
+# def dont_turn_back_and_forth():
+# 	name = "dont_turn_back_and_forth"
+# 	space = get_new_space()
+# 	# agent_pos = info["objects_location"]["agent"]
+# 	turned_right = False
+# 	turned_left = False
+# 	turned_back_and_forth = False
+# 	while True:
+# 		x = 1 if turned_back_and_forth else 0
+# 		turned_back_and_forth = False
+# 		space.fill(x)
+# 		update_strategy(name, space)
 
-		action = yield {waitFor: pred_all_events}
-		action = int(action.name)
+# 		action = yield {waitFor: pred_all_events}
+# 		action = int(action.name)
 
-		if (action == 1 and turned_left) or (action == 0 and turned_right):
-			turned_back_and_forth = True
+# 		if (action == 1 and turned_left) or (action == 0 and turned_right):
+# 			turned_back_and_forth = True
 
-		turned_left, turned_right = False, False
-		if action == 0:
-			turned_left = True
-		elif action == 1:
-			turned_right = True
+# 		turned_left, turned_right = False, False
+# 		if action == 0:
+# 			turned_left = True
+# 		elif action == 1:
+# 			turned_right = True
+
 
 		
 @b_thread
-def count_turns_in_direction():
-	name = "count_turns_in_direction"
+def count_turns_in_direction_left():
+	name = "count_turns_in_direction_left"
 	space = get_new_space()
-	# agent_pos = info["objects_location"]["agent"]
-	turned_right = 0
 	turned_left = 0
 	while True:
-		max_turns = max(turned_right, turned_left)
-		val = min(4,max_turns)
-		space.fill(val)
+		space.fill(turned_left)
 		update_strategy(name, space)
 
 		action = yield {waitFor: pred_all_events}
@@ -303,25 +300,40 @@ def count_turns_in_direction():
 
 		if action == 0:
 			turned_left += 1
-		elif action == 1:
-			turned_right += 1
-
-		if action != 1:
-			turned_right = 0
-		if action != 0:
+		else:
 			turned_left = 0
 
 
+@b_thread
+def count_turns_in_direction_right():
+	name = "count_turns_in_direction_right"
+	space = get_new_space()
+	turned_right = 0
+	while True:
+		space.fill(turned_right)
+		update_strategy(name, space)
 
+		action = yield {waitFor: pred_all_events}
+		action = int(action.name)
 
-strategies_bts = [ 
+		if action == 1:
+			turned_right += 1
+		else:
+			turned_right = 0
+
+strategies_doorkey = [
 					door_key_level,
 					door_key_how_far_from_next_objective,
-					# dont_turn_back_and_forth,
-					# count_turns_in_direction
-					# level,	
-					# how_far_from_next_objective
+					count_turns_in_direction_left,
+					count_turns_in_direction_right,
+]
+
+strategies_blockedunlock = [ 
+					level,	
+					how_far_from_next_objective
 					]
+
+strategies_bts = strategies_doorkey
 
 def create_strategies():
 	# bthreads = [x() for x in strategies_bts + [request_all_moves()]]

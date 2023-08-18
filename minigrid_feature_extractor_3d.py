@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import gymnasium as gym
 
-class MinigridFeaturesExtractor(BaseFeaturesExtractor):
+class MinigridFeaturesExtractor3D(BaseFeaturesExtractor):
     def __init__(self, observation_space: gym.Space, features_dim: int = 512, normalized_image: bool = False) -> None:
         super().__init__(observation_space, features_dim)
         n_input_channels = observation_space.shape[0]

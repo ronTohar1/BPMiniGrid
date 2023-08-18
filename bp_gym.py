@@ -49,6 +49,9 @@ class BPGymEnv(ObservationWrapper):
         if not self.as_image:
             return (env_obs, bp_obs)
         else:
+            # print(bp_obs)
+            print(bp_obs.shape)
+            print(self.n_bthreads)
             new_shape = list(self.observation_space.shape)
             new_shape[self.axis] = self.n_bthreads
             new_shape = tuple(new_shape)

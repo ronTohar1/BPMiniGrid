@@ -7,16 +7,12 @@ from minigrid.wrappers import ImgObsWrapper
 
 from gymnasium.wrappers.frame_stack import FrameStack
 
-def create_environment(env_name="MiniGrid-BlockedUnlockPickup-v0", render_mode=None, add_strategies=True, vanilla=False, stack_frames=None):
+def create_environment(env_name="MiniGrid-BlockedUnlockPickup-v0", render_mode=None, add_strategies=True, stack_frames=None,):
     # env_name = "MiniGrid-DoorKey-8x8-v0"
-    env = gym.make(env_name, render_mode=render_mode, max_episode_steps=5000)
+    env = gym.make(env_name, render_mode=render_mode, max_episode_steps=500)
     
     if not render_mode:
         env = gym.make(env_name)
-    
-    if vanilla:
-        return env
-    
     
     env = FullyObsWrapper(env)
     env = ObjectsLocationWrapper(env)

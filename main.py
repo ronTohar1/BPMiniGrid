@@ -34,7 +34,7 @@ def main2():
     # print(env.observation_space)
     # env = ManualControl(env)
 
-    env = create_environment(env_name="MiniGrid-DoorKey-8x8-v0",add_strategies=True, render_mode="human")
+    env = create_environment(env_name="MiniGrid-KeyCorridorS3R1-v0",add_strategies=False, render_mode="human")
     # env = gym.make("MiniGrid-DoorKey-8x8-v0", render_mode="human")
     env = ManualControl(env)
     env.start()
