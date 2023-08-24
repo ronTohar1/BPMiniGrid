@@ -46,8 +46,10 @@ def train():
     env_names = ["DoorKey-6x6-v0",
                  "DoorKey-8x8-v0",
                  "BlockedUnlockPickup-v0",
-                 "KeyCorridorS3R1-v0",
-                 "KeyCorridorS3R2-v0"
+                #  "KeyCorridorS3R1-v0",
+                 "KeyCorridorS3R2-v0",
+                 "KeyCorridorS3R3-v0",
+                 "KeyCorridorS4R3-v0",
 
                  ]
     env_name = f"MiniGrid-{env_names[env_index]}"

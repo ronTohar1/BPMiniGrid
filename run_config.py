@@ -2,6 +2,7 @@ from configuration import Config
 import subprocess
 from configuration import config_list
 import argparse
+import os
 
 def run_config(config, slow=False, num_runs=2):
 
@@ -29,9 +30,9 @@ def run_config(config, slow=False, num_runs=2):
         
     for i in range(num_runs):
         if slow:
-            r = subprocess.run(['sbatch' , '--qos=achiya --partition=rtx2080','train_doorkey.sh', run_string])
+            os.system('sbatch --qos=achiya --partition=rtx2080 ' + 'train.sh ' + run_string)
         else:
-            r = subprocess.run(['sbatch','train_doorkey.sh', run_string])
+            r = subprocess.run(['sbatch','train.sh', run_string])
     config_string = config.to_string()
     print("Slow:\n" if slow else "Fast:\n", config_string)
 
@@ -39,12 +40,14 @@ def run_config(config, slow=False, num_runs=2):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--slow",'-s', action="store_true", help="Run the jobs on the slow queue")
+    parser.add_argument("--num_runs",'-n', type=int, default=1, help="Number of runs to do for each config")
 
     args = parser.parse_args()  
 
     slow = args.slow
+    num_runs = args.num_runs
     for config in config_list:
-        run_config(config, slow=slow)
+        run_config(config, slow=slow, num_runs=num_runs)
 
 if __name__ == "__main__":
     main()

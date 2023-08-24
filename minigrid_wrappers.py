@@ -33,8 +33,24 @@ class ObjectsLocationWrapper(ObservationWrapper):
         def get_object_location(image,object_name):
             object_idx = OBJECT_TO_IDX[object_name]
             object_loc = np.where(image[:,:,0] == object_idx)
-            object_loc = (object_loc[0][0],object_loc[1][0]) if len(object_loc[0]) > 0 else None
+            if len(object_loc[0]) == 0:
+                object_loc = None
+            else:
+                object_loc = list(zip(object_loc[0],object_loc[1])) if object_loc else None
+                if len(object_loc) == 1:
+                    object_loc = object_loc[0]
+        
             return object_loc
+        
+        def get_states(objects_locations):
+            if objects_locations is None:
+                return None
+            if not isinstance(objects_locations,list):
+                objects_locations = [objects_locations]
+            states = [obs["image"][loc[0],loc[1],2] for loc in objects_locations]
+            if len(states) == 1:
+                    states = states[0]
+            return states
 
         # make the locations a tuple of 2 elements
         key_loc = get_object_location(image,"key")
@@ -42,7 +58,9 @@ class ObjectsLocationWrapper(ObservationWrapper):
         agent_loc = get_object_location(image,"agent")
         ball_loc = get_object_location(image,"ball")
         door_loc = get_object_location(image,"door")
-        door_state = obs["image"][door_loc[0],door_loc[1],2] if door_loc is not None else None
+
+        door_state = get_states(door_loc) 
+
         goal_loc = get_object_location(image,"goal")
         return {"key": key_loc, 
                 "box": box_loc,

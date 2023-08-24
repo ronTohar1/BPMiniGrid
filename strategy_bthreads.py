@@ -222,6 +222,7 @@ def door_key_level():
 
 		action = yield {waitFor: pred_all_events}
 		level = doork_key_get_level(info)
+		# print("level",level)
 
 @b_thread
 def door_key_how_far_from_next_objective():
@@ -229,10 +230,7 @@ def door_key_how_far_from_next_objective():
 	space = get_new_space()
 	distance = 0
 	while True:
-		space.fill(distance)
-		update_strategy(name, space)
-
-		action = yield {waitFor: pred_all_events}
+		
 		level = doork_key_get_level(info)
 
 		# ball_pos = info["objects_location"]["ball"]
@@ -253,36 +251,12 @@ def door_key_how_far_from_next_objective():
 		elif level == 0:
 			distance = get_distance(agent_pos, key_pos)
 
+		space.fill(distance)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
 		# print("distance", distance)
 		# print("level", level)
-
-
-
-# @b_thread
-# def dont_turn_back_and_forth():
-# 	name = "dont_turn_back_and_forth"
-# 	space = get_new_space()
-# 	# agent_pos = info["objects_location"]["agent"]
-# 	turned_right = False
-# 	turned_left = False
-# 	turned_back_and_forth = False
-# 	while True:
-# 		x = 1 if turned_back_and_forth else 0
-# 		turned_back_and_forth = False
-# 		space.fill(x)
-# 		update_strategy(name, space)
-
-# 		action = yield {waitFor: pred_all_events}
-# 		action = int(action.name)
-
-# 		if (action == 1 and turned_left) or (action == 0 and turned_right):
-# 			turned_back_and_forth = True
-
-# 		turned_left, turned_right = False, False
-# 		if action == 0:
-# 			turned_left = True
-# 		elif action == 1:
-# 			turned_right = True
 
 
 		
@@ -321,6 +295,143 @@ def count_turns_in_direction_right():
 		else:
 			turned_right = 0
 
+
+#################################################################### 
+# Key Corridor problem
+
+
+def get_door_state(door_loc, doors_states, doors_loc):
+	if door_loc is None:
+		return None
+	if door_loc not in doors_loc:
+		return None
+	index = doors_loc.index(door_loc)
+	return doors_states[index]	
+
+
+@b_thread
+def key_corridor_level():
+	name = "key_corridor_level"
+	space = get_new_space()
+	level = 0
+
+	last_round_agent_is_on_door = False
+	in_room = False
+	
+	doors_state = info["objects_location"]["door_state"]
+	# where door_state is 2 - the only locked door
+	ball_door_index = [i for i, x in enumerate(doors_state) if x == 2][0]
+	ball_door_loc = info["objects_location"]["door"][ball_door_index]
+
+	while True:
+
+		key_pos = info["objects_location"]["key"]
+		doors_pos = info["objects_location"]["door"]
+		doors_state = info["objects_location"]["door_state"]
+		agent_pos = info["objects_location"]["agent"]
+		ball_pos = info["objects_location"]["ball"]
+		level = 0
+
+		ball_door_pos = ball_door_loc
+		ball_door_state = get_door_state(ball_door_pos, doors_state, doors_pos)
+
+		if ball_door_state == None: # agent is on the door
+			level = 4
+			last_round_agent_is_on_door = True
+			in_room = False
+		elif ball_door_state!= 2: # Door was already unlocked
+			if (agent_pos[0] > ball_door_pos[0] and last_round_agent_is_on_door) or in_room: # I am right to the door and I was on the door last round
+				level = 4
+				in_room=True
+			elif ball_door_state == 0: # Open door (if None it means the agent is at the door)
+				level = 3
+			elif ball_door_state == 1: # Unlocked but not open door (and agent is left to the door)
+				level = 2
+		else:
+			if key_pos is None: # Holding Key
+				level = 1
+			else:
+				level = 0
+
+
+		# Check if holding key in levels:
+		if level >= 2:
+			if key_pos is not None:
+				level +=1
+
+		print("level",level)
+		space.fill(level)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+
+
+
+
+@b_thread
+def key_corridor_how_far_from_objective():
+	name = "key_corridor_how_far_from_objective"
+	space = get_new_space()
+	level = 0
+	distance = 0
+
+	last_round_agent_is_on_door = False
+	in_room = False
+	
+	doors_state = info["objects_location"]["door_state"]
+	# where door_state is 2 - the only locked door
+	ball_door_index = [i for i, x in enumerate(doors_state) if x == 2][0]
+	ball_door_loc = info["objects_location"]["door"][ball_door_index]
+
+	while True:
+
+		key_pos = info["objects_location"]["key"]
+		doors_pos = info["objects_location"]["door"]
+		doors_state = info["objects_location"]["door_state"]
+		agent_pos = info["objects_location"]["agent"]
+		ball_pos = info["objects_location"]["ball"]
+		level = 0
+
+		ball_door_pos = ball_door_loc
+		ball_door_state = get_door_state(ball_door_pos, doors_state, doors_pos)
+
+		if ball_door_state == None: # agent is on the door
+			level = 4
+			last_round_agent_is_on_door = True
+			in_room = False
+		elif ball_door_state!= 2: # Door was already unlocked
+			if (agent_pos[0] > ball_door_pos[0] and last_round_agent_is_on_door) or in_room: # I am right to the door and I was on the door last round
+				level = 4
+				in_room=True
+			elif ball_door_state == 0: # Open door (if None it means the agent is at the door)
+				level = 3
+			elif ball_door_state == 1: # Unlocked but not open door (and agent is left to the door)
+				level = 2
+		else:
+			if key_pos is None: # Holding Key
+				level = 1
+			else:
+				level = 0
+
+		if level == 0:
+			distance = get_distance(agent_pos, key_pos)
+		elif level == 1:
+			distance = get_distance(agent_pos, ball_door_loc)
+		elif level == 2:# Unlocked but not open door (and agent is left to the door)
+			distance = get_distance(agent_pos, ball_door_loc)
+		elif level >= 3: # Open door or in the room
+			if ball_pos is None:
+				distance = 0
+			else:
+				distance = get_distance(agent_pos, ball_pos)
+
+		print("distance",distance)
+		space.fill(distance)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+
+
 strategies_doorkey = [
 					door_key_level,
 					door_key_how_far_from_next_objective,
@@ -333,7 +444,14 @@ strategies_blockedunlock = [
 					how_far_from_next_objective
 					]
 
-strategies_bts = strategies_doorkey
+strategies_keycorridor = [
+					key_corridor_level,
+					key_corridor_how_far_from_objective,
+					count_turns_in_direction_left,
+					count_turns_in_direction_right,
+					]
+
+strategies_bts = strategies_keycorridor
 
 def create_strategies():
 	# bthreads = [x() for x in strategies_bts + [request_all_moves()]]

@@ -49,9 +49,6 @@ class BPGymEnv(ObservationWrapper):
         if not self.as_image:
             return (env_obs, bp_obs)
         else:
-            # print(bp_obs)
-            print(bp_obs.shape)
-            print(self.n_bthreads)
             new_shape = list(self.observation_space.shape)
             new_shape[self.axis] = self.n_bthreads
             new_shape = tuple(new_shape)
@@ -67,7 +64,6 @@ class BPGymEnv(ObservationWrapper):
             self.bprog.choose_event(BEvent(str(action)))
             bp_obs = self._get_bp_observation()
             observation = self._concat_observations(observation, bp_obs)
-            # print("Observation",observation)
 
         return observation, reward, terminated, truncated, info 
     
@@ -80,7 +76,6 @@ class BPGymEnv(ObservationWrapper):
             self._reset_strategies()
             obs_strats = self._get_bp_observation()
             observation = self._concat_observations(observation, obs_strats)
-            # print("reset observation:",observation)
 
         return observation, info
     
