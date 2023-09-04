@@ -9,6 +9,7 @@ from minigrid.wrappers import ImgObsWrapper
 from gymnasium.wrappers.flatten_observation import FlattenObservation
 import numpy as np
 
+
 def create_env():
     env = gym.make("MiniGrid-DoorKey-5x5-v0")
     # env = gym.make("MiniGrid-DoorKey-5x5-v0", render_mode="human")

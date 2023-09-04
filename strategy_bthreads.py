@@ -128,7 +128,6 @@ def level():
 		action = yield {waitFor: pred_all_events}
 		# action = int(action.name)
 		level =	get_level(info, initial_ball_pos)
-		# print("level: ", level)
 	
 			
 
@@ -180,15 +179,13 @@ def how_far_from_next_objective():
 		if level == 0: # I am not in the box and the ball is blocking the door
 			distance = get_distance(agent_pos, initial_ball_pos)
 
-		# print("distance", distance)
-		# print("level", level)
 
 
 
 #################################################################### 
 # Door key problem
 
-def doork_key_get_level(info):
+def door_key_get_level(info):
 	# ball_pos = info["objects_location"]["ball"]
 	key_pos = info["objects_location"]["key"]
 	door_pos = info["objects_location"]["door"]
@@ -221,8 +218,7 @@ def door_key_level():
 		update_strategy(name, space)
 
 		action = yield {waitFor: pred_all_events}
-		level = doork_key_get_level(info)
-		# print("level",level)
+		level = door_key_get_level(info)
 
 @b_thread
 def door_key_how_far_from_next_objective():
@@ -231,7 +227,7 @@ def door_key_how_far_from_next_objective():
 	distance = 0
 	while True:
 		
-		level = doork_key_get_level(info)
+		level = door_key_get_level(info)
 
 		# ball_pos = info["objects_location"]["ball"]
 		key_pos = info["objects_location"]["key"]
@@ -255,8 +251,6 @@ def door_key_how_far_from_next_objective():
 		update_strategy(name, space)
 
 		action = yield {waitFor: pred_all_events}
-		# print("distance", distance)
-		# print("level", level)
 
 
 		
@@ -359,7 +353,6 @@ def key_corridor_level():
 			if key_pos is not None:
 				level +=1
 
-		print("level",level)
 		space.fill(level)
 		update_strategy(name, space)
 
@@ -425,11 +418,144 @@ def key_corridor_how_far_from_objective():
 			else:
 				distance = get_distance(agent_pos, ball_pos)
 
-		print("distance",distance)
 		space.fill(distance)
 		update_strategy(name, space)
 
 		action = yield {waitFor: pred_all_events}
+
+####################################################################
+####################################################################
+
+def unlock_get_level(info):
+	key_pos = info["objects_location"]["key"]
+	door_pos = info["objects_location"]["door"]
+	door_state = info["objects_location"]["door_state"]
+
+	level = 0 
+	if not key_pos:
+		level = 1
+
+	if door_state is not None and door_state == 0: #Open door
+		level = 2 
+
+	return level
+
+@b_thread
+def unlock_level():
+	name = "unlock_level"
+	space = get_new_space()
+	level = 0
+	while True:
+		space.fill(level)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+		level = unlock_get_level(info)
+
+@b_thread
+def unlock_how_far_from_next_objective():
+	name = "unlock_how_far_from_next_objective"
+	key_pos = info["objects_location"]["key"]
+	door_pos = info["objects_location"]["door"]
+	agent_pos = info["objects_location"]["agent"]
+	space = get_new_space()
+	level = 0
+	distance = get_distance(key_pos, agent_pos)
+	while True:
+		space.fill(distance)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+		key_pos = info["objects_location"]["key"]
+		door_pos = info["objects_location"]["door"]
+		agent_pos = info["objects_location"]["agent"]
+		level = unlock_get_level(info)
+
+		if level == 0:
+			distance = get_distance(key_pos, agent_pos)
+		elif level == 1:
+			distance = get_distance(door_pos, agent_pos)
+		elif level == 2:
+			distance = 0
+
+
+####################################################################
+####################################################################
+
+def unlock_pickup_get_level(info):
+	key_pos = info["objects_location"]["key"]
+	door_pos = info["objects_location"]["door"]
+	door_state = info["objects_location"]["door_state"]
+	agent_pos = info["objects_location"]["agent"]
+	box_pos = info["objects_location"]["box"]
+	level = 0
+
+	if box_pos is None:
+		level = 5
+
+	elif door_state!= 2: # Door was already unlocked
+		if door_state == 0 or door_pos is None: # Open door (if None it means the agent is at the door)
+			level = 3
+		elif agent_pos[0] >= door_pos[0]: # I am right to the door or at the door
+			level = 3
+		elif door_state == 1 and agent_pos[0] < door_pos[0]: # Unlocked but not open door (and agent is left to the door)
+			level = 2
+
+		if level == 3 and key_pos is not None and door_pos is not None and agent_pos[0] > door_pos[0]: # I am right to the door without the key
+			level = 4
+	else:
+		if key_pos is None: # Holding Key
+			level = 1
+		else:
+			level = 0
+
+	return level
+
+
+@b_thread
+def unlock_pickup_level():
+	name = "unlock_level"
+	space = get_new_space()
+	level = 0
+	while True:
+		space.fill(level)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+		level = unlock_pickup_get_level(info)
+
+@b_thread
+def unlock_pickup_how_far_from_next_objective():
+	name = "unlock_how_far_from_next_objective"
+	key_pos = info["objects_location"]["key"]
+	door_pos = info["objects_location"]["door"]
+	agent_pos = info["objects_location"]["agent"]
+	space = get_new_space()
+	level = 0
+	distance = get_distance(key_pos, agent_pos)
+	while True:
+		space.fill(distance)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+		key_pos = info["objects_location"]["key"]
+		door_pos = info["objects_location"]["door"]
+		agent_pos = info["objects_location"]["agent"]
+		box_pos = info["objects_location"]["box"]
+		level = unlock_pickup_get_level(info)
+
+		if level == 0:
+			distance = get_distance(key_pos, agent_pos)
+		elif level == 1 or level == 2:
+			distance = get_distance(door_pos, agent_pos)
+		elif level == 3 or level == 4:
+			distance = get_distance(box_pos, agent_pos)
+		else:
+			distance = 0
+
+		
+		
+
 
 
 strategies_doorkey = [
@@ -451,7 +577,18 @@ strategies_keycorridor = [
 					count_turns_in_direction_right,
 					]
 
-strategies_bts = strategies_keycorridor
+strategies_unlock = [unlock_level,
+					 unlock_how_far_from_next_objective,
+					 count_turns_in_direction_left,
+					 count_turns_in_direction_right,]
+
+strategies_unlock_pickup = [unlock_pickup_level,
+							unlock_pickup_how_far_from_next_objective,
+							count_turns_in_direction_left,
+							count_turns_in_direction_right,]
+
+
+strategies_bts = strategies_unlock_pickup
 
 def create_strategies():
 	# bthreads = [x() for x in strategies_bts + [request_all_moves()]]

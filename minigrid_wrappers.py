@@ -1,17 +1,20 @@
+from typing import Any, SupportsFloat
 import gymnasium as gym
-from gymnasium import ObservationWrapper
+from gymnasium import ObservationWrapper, Wrapper
 from gymnasium.core import Env
 from minigrid.core.constants import OBJECT_TO_IDX
 import numpy as np
 
+
 # Adds location of some objects to the info dict
 class ObjectsLocationWrapper(ObservationWrapper):
-    def __init__(self, env: Env, print_location=False, **kwargs):
+    def __init__(self, env: Env, print_location=False, partially_observable=False ,**kwargs):
         super().__init__(env,**kwargs)
         self.print_location = print_location
         self.env = env
         self.observation_space = env.observation_space
         self.action_space = env.action_space
+        self.partially_observable = partially_observable
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
@@ -25,6 +28,8 @@ class ObjectsLocationWrapper(ObservationWrapper):
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
         info["objects_location"] = self._get_location_info(obs)
+        if self.print_location:
+            print(info["objects_location"])
         return obs, reward, terminated, truncated, info
     
     def _get_location_info(self, obs):
@@ -83,4 +88,30 @@ class OnlyImageObservation(ObservationWrapper):
 
 
 
+class CountBackAndForthTurns(Wrapper):
+    def __init__(self, env: Env):
+        super().__init__(env)
+        self.last_action = None
+        self.back_and_forth_turns = 0
+
+    def step(self, action: Any) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        if self.last_action is not None:
+            if action == 0 and self.last_action == 1:
+                self.back_and_forth_turns = 1
+            elif action == 1 and self.last_action == 0:
+                self.back_and_forth_turns = 1
+            else:
+                self.back_and_forth_turns = 0
+        self.last_action = action
+        info["back_and_forth_turns"] = self.back_and_forth_turns
+
+
+        return obs, reward, terminated, truncated, info
+
+    def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[Any, dict[str, Any]]:
+        self.last_action = None
+        self.back_and_forth_turns = 0
+        
+        return super().reset(seed=seed, options=options)
     

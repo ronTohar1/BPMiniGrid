@@ -4,7 +4,7 @@ from minigrid.wrappers import SymbolicObsWrapper, FullyObsWrapper
 from minigrid.core.constants import OBJECT_TO_IDX
 import numpy as np
 from minigrid.manual_control import ManualControl
-from minigrid_wrappers import ObjectsLocationWrapper, OnlyImageObservation
+from minigrid_wrappers import ObjectsLocationWrapper, OnlyImageObservation, CountBackAndForthTurns
 from bp_gym import BPGymEnv
 from create_environment import create_environment
 def main():
@@ -34,8 +34,9 @@ def main2():
     # print(env.observation_space)
     # env = ManualControl(env)
 
-    env = create_environment(env_name="MiniGrid-KeyCorridorS3R3-v0",add_strategies=True, render_mode="human")
-    # env = create_environment("MiniGrid-DoorKey-8x8-v0", render_mode="human")
+    # env = create_environment(env_name="MiniGrid-KeyCorridorS3R3-v0",add_strategies=False, render_mode="human")
+    # env = CountBackAndForthTurns(env)
+    env = create_environment("MiniGrid-UnlockPickup-v0", render_mode="human", add_strategies=True, partially_observable=False)
     env = ManualControl(env)
     env.start()
 
