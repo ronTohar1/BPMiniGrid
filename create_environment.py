@@ -18,7 +18,7 @@ def create_environment(env_name="MiniGrid-BlockedUnlockPickup-v0", render_mode=N
 
     if not partially_observable:
         env = FullyObsWrapper(env)
-    env = ObjectsLocationWrapper(env, True)
+    env = ObjectsLocationWrapper(env)
     env = ImgObsWrapper(env)
     env = BPGymEnv(env, add_strategies=add_strategies, as_image=True, axis=2)
     

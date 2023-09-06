@@ -16,12 +16,31 @@ state = None
 info = None
 
 ACTIONS_ALL = {
-        0: 'LANE_LEFT',
-        1: 'IDLE',
-        2: 'LANE_RIGHT',
-        3: 'FASTER',
-        4: 'SLOWER'
+        0: 'Turn Left',
+        1: 'Turn Right',
+        2: 'Forward',
+        3: 'Pickup',
+        4: 'Drop',
+		5: "Toggle",
+		6: "Done",
 }
+
+ACTIONS = {
+	"left": 0,
+	"right": 1,
+	"forward": 2,
+	"pickup": 3,
+	"drop": 4,
+	"toggle": 5,
+	"done": 6
+}
+DIRECTOINS = {
+	"right": 0,
+	"down": 1,
+	"left": 2,
+	"up": 3
+}
+
 
 def set_state(s, information=None):
 	global state
@@ -122,6 +141,7 @@ def level():
 	space = get_new_space()
 	initial_ball_pos = info["objects_location"]["ball"]
 	while True:
+		# print("level", level)
 		space.fill(level)
 		update_strategy(name, space)
 
@@ -146,6 +166,7 @@ def how_far_from_next_objective():
 
 	distance = get_distance(agent_pos, initial_ball_pos)
 	while True:
+		# print("distance", distance)
 		space.fill(distance)
 		update_strategy(name, space)
 
@@ -254,6 +275,201 @@ def door_key_how_far_from_next_objective():
 
 
 		
+####################################################################
+####################################################################
+
+def object_to_the_dir(pos, obj_pos, dir):
+	# return true if object is directly to the dir of the agent (1 square away)
+	# pos is (Col, Row)
+	if pos is None or obj_pos is None:
+		return False
+	if dir == DIRECTOINS["right"]:
+		return (pos[0] == obj_pos[0] - 1) and (pos[1] == obj_pos[1])
+	elif dir == DIRECTOINS["down"]:
+		return (pos[0] == obj_pos[0]) and (pos[1] == obj_pos[1] - 1)
+	elif dir == DIRECTOINS["left"]:
+		return (pos[0] == obj_pos[0] + 1) and (pos[1] == obj_pos[1])
+	elif dir == DIRECTOINS["up"]:
+		return (pos[0] == obj_pos[0]) and (pos[1] == obj_pos[1] + 1)
+
+@b_thread
+def door_key_level_po():
+	key_on_agent = False
+	door_unlocked = False
+	door_open = False
+
+	name = "door_key_level_po"
+	space = get_new_space()
+	level = 0
+	while True:
+		key_pos = info["objects_location"]["key"]
+		door_pos = info["objects_location"]["door"]
+		door_state = info["objects_location"]["door_state"]
+		key_state = info["objects_location"]["key_state"]
+		agent_pos = info["objects_location"]["agent"]
+		goal_pos = info["objects_location"]["goal"]
+
+		if door_pos is not None:
+			door_unlocked = door_state != 2
+			door_open = door_state == 0
+
+		level = 0
+		if key_on_agent:
+			level = 1
+		if key_on_agent and door_pos is not None:
+			level = 2
+		if door_unlocked:
+			level = 3
+		if door_open:
+			level = 4
+		if goal_pos:
+			level = 5
+
+		space.fill(level)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+		action = int(action.name)
+
+		if action == ACTIONS["pickup"]:
+			if key_pos != info["objects_location"]["key"]:
+				key_on_agent = True
+				key_loc = info["objects_location"]["key"]
+		
+		if action == ACTIONS["drop"]:
+			if key_pos != info["objects_location"]["key"]:
+				key_on_agent = False
+				key_loc = info["objects_location"]["key"]
+
+@b_thread
+def unlock_pickup_level_po():
+	key_on_agent = False
+	door_unlocked = False
+	door_open = False
+
+	name = "unlock_pickup_level_po"
+	space = get_new_space()
+	level = 0
+	while True:
+		key_pos = info["objects_location"]["key"]
+		door_pos = info["objects_location"]["door"]
+		door_state = info["objects_location"]["door_state"]
+		key_state = info["objects_location"]["key_state"]
+		agent_pos = info["objects_location"]["agent"]
+		box_pos = info["objects_location"]["box"]
+
+		if door_pos is not None:
+			door_unlocked = door_state != 2
+			door_open = door_state == 0
+
+		level = 0
+		if key_on_agent:
+			level = 1
+		if key_on_agent and door_pos is not None:
+			level = 2
+		if door_unlocked:
+			level = 3
+		if door_open:
+			level = 4
+		if box_pos:
+			if key_on_agent:
+				level = 5
+			else:
+				level = 6
+
+		print("level", level)
+		space.fill(level)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+		action = int(action.name)
+
+		if action == ACTIONS["pickup"]:
+			if key_pos != info["objects_location"]["key"]:
+				key_on_agent = True
+				key_loc = info["objects_location"]["key"]
+		
+		if action == ACTIONS["drop"]:
+			if key_pos != info["objects_location"]["key"]:
+				key_on_agent = False
+				key_loc = info["objects_location"]["key"]
+
+
+@b_thread
+def unlock_level_po():
+	key_on_agent = False
+
+	name = "unlock_level_po"
+	space = get_new_space()
+	level = 0
+	while True:
+		key_pos = info["objects_location"]["key"]
+		door_pos = info["objects_location"]["door"]
+
+		level = 0
+		if key_on_agent:
+			level = 1
+		if key_on_agent and door_pos is not None:
+			level = 2
+
+		print("level", level)
+		space.fill(level)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+		action = int(action.name)
+
+		if action == ACTIONS["pickup"]:
+			if key_pos != info["objects_location"]["key"]:
+				key_on_agent = True
+		
+		if action == ACTIONS["drop"]:
+			if key_pos != info["objects_location"]["key"]:
+				key_on_agent = False
+
+		
+		
+
+
+@b_thread
+def door_key_how_far_from_next_objective_po():
+	name = "door_key_objective_distance"
+	space = get_new_space()
+	distance = 0
+	while True:
+		
+		level = door_key_get_level(info)
+
+		# ball_pos = info["objects_location"]["ball"]
+		key_pos = info["objects_location"]["key"]
+		door_pos = info["objects_location"]["door"]
+		door_state = info["objects_location"]["door_state"]
+		agent_pos = info["objects_location"]["agent"]
+		goal_pos = info["objects_location"]["goal"]
+		key_state = info["objects_location"]["key_state"]
+		if level == 3:
+			if goal_pos:
+				distance = get_distance(agent_pos, goal_pos)
+			else:
+				distance = 0
+		elif level == 2:
+			distance = get_distance(agent_pos, door_pos)
+		elif level == 1:
+			distance = get_distance(agent_pos, door_pos)
+		elif level == 0:
+			distance = get_distance(agent_pos, key_pos)
+
+		space.fill(distance)
+		update_strategy(name, space)
+
+		action = yield {waitFor: pred_all_events}
+
+
+
+
+####################################################################
+
+
 @b_thread
 def count_turns_in_direction_left():
 	name = "count_turns_in_direction_left"
@@ -567,7 +783,9 @@ strategies_doorkey = [
 
 strategies_blockedunlock = [ 
 					level,	
-					how_far_from_next_objective
+					how_far_from_next_objective,
+					count_turns_in_direction_left,
+					count_turns_in_direction_right,
 					]
 
 strategies_keycorridor = [
@@ -587,8 +805,22 @@ strategies_unlock_pickup = [unlock_pickup_level,
 							count_turns_in_direction_left,
 							count_turns_in_direction_right,]
 
+strategies_door_key_po = [door_key_level_po,
+						  count_turns_in_direction_left,
+					 	  count_turns_in_direction_right,
+						]
 
-strategies_bts = strategies_unlock_pickup
+strategies_unlock_pickup_po = [unlock_pickup_level_po,
+							   count_turns_in_direction_left,
+							   count_turns_in_direction_right,
+						]
+
+strategies_unlock_po = [unlock_level_po,
+						count_turns_in_direction_left,
+						count_turns_in_direction_right,
+						]
+
+strategies_bts = strategies_unlock_pickup_po
 
 def create_strategies():
 	# bthreads = [x() for x in strategies_bts + [request_all_moves()]]

@@ -19,6 +19,7 @@ class ObjectsLocationWrapper(ObservationWrapper):
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
         info["objects_location"] = self._get_location_info(obs)
+        info["agent_direction"] = self.get_agent_direction(obs)
         return obs, info
     
     def render(self, **kwargs):
@@ -28,9 +29,14 @@ class ObjectsLocationWrapper(ObservationWrapper):
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
         info["objects_location"] = self._get_location_info(obs)
+        info["agent_direction"] = self.get_agent_direction(obs)
         if self.print_location:
             print(info["objects_location"])
         return obs, reward, terminated, truncated, info
+    
+    def get_agent_direction(self, obs):
+        direction = obs["direction"]
+        return direction
     
     def _get_location_info(self, obs):
         image = obs["image"]
@@ -64,7 +70,8 @@ class ObjectsLocationWrapper(ObservationWrapper):
         ball_loc = get_object_location(image,"ball")
         door_loc = get_object_location(image,"door")
 
-        door_state = get_states(door_loc) 
+        door_state = get_states(door_loc)
+        key_state = get_states(key_loc)
 
         goal_loc = get_object_location(image,"goal")
         return {"key": key_loc, 
@@ -73,7 +80,8 @@ class ObjectsLocationWrapper(ObservationWrapper):
                 "ball": ball_loc, 
                 "door": door_loc, 
                 "door_state": door_state,
-                "goal": goal_loc,}
+                "goal": goal_loc,
+                "key_state": key_state,}
 
 
 class OnlyImageObservation(ObservationWrapper):
