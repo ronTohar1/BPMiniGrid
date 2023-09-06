@@ -109,7 +109,8 @@ def train():
 
     agent = model(policy, env, verbose=verbose, tensorboard_log=tensorlog, policy_kwargs=policy_kwargs, seed=seed
                   , learning_rate=lr) 
-    agent.learn(num_episodes, callback=eval_callback, log_interval=1, tb_log_name=model_name)
+    # agent.learn(num_episodes, callback=eval_callback, log_interval=1, tb_log_name=model_name)
+    print(agent.policy)
 
 if __name__ == '__main__':
     train()
