@@ -61,22 +61,10 @@ class BPwrapper():
 
 	def get_selectable_events(self):
 		return self.selectable_events
+	
+	def run(self,):
+		self.bprog.run()
 
-	# def is_game_finished(self):
-	# 	""" Returns true if the game has finished.
-	# 	If the last event available is the win event - choosing it."""
-
-	# 	selectable = self.selectable_events
-	# 	if selectable is None:
-	# 		raise Exception("Selectable events is None")
-	# 	if len(selectable) > 1:  # More than one possible event left.
-	# 		return False
-	# 	if len(selectable) == 1: # One event left - either win event or might be some other event available.
-	# 		event = selectable[0]
-	# 		game_finished = event_handler.is_game_finished_event(event)
-	# 		if game_finished: # If game is finished - choosing the win event
-	# 			self.choose_event(event)
-	# 		return game_finished
-
-	# 	return True # No events are selectable
+	def super_step(self, event: BEvent):
+		self.bprog.super_step(event)
 

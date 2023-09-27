@@ -10,7 +10,7 @@ class MinigridFeaturesExtractor3D(BaseFeaturesExtractor):
         self.cnn = nn.Sequential(
             nn.Conv3d(n_input_channels, 16, 2,padding="same"),
             nn.ReLU(),
-            nn.Conv3d(16, 32, 2),
+            nn.Conv3d(16, 32, 2, padding="same"),
             nn.ReLU(),
             nn.Conv3d(32, 64, 2),
             nn.ReLU(),

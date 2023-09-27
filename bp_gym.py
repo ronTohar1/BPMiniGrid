@@ -2,14 +2,13 @@ import gymnasium
 from gymnasium import spaces
 from bppy import BProgram
 from bp_wrapper import BPwrapper
-from strategy_bthreads import create_strategies, number_of_bthreads, bthreads_progress, reset_all_strategies, set_state
+from strategy_bthreads import create_strategies, number_of_bthreads, bthreads_progress
 # from priority_event_selection_strategy import PriorityEventSelectionStrategy
 import numpy as np
 from bppy import *
 # from util import BOARD_SIZE
-from virtual_block_ess import VirtualBlockEventSelectionStrategy
-from gymnasium.wrappers.flatten_observation import FlattenObservation
 from gymnasium import ObservationWrapper
+from bp_events import *
 
 class BPGymEnv(ObservationWrapper):
     def __init__(self, env, add_strategies=False, as_image=False, axis=0, **kwargs): # Expecting an environment with a gymnasium interface
@@ -22,7 +21,7 @@ class BPGymEnv(ObservationWrapper):
         self.axis = axis
 
         # initialize the bprogram containing the strategies
-        if (self.add_strategies):
+        if (self.add_strategies and number_of_bthreads() > 0):
             self.n_bthreads = number_of_bthreads()
             if as_image:
                 # channels = env.observation_space.shape[axis]
@@ -57,11 +56,10 @@ class BPGymEnv(ObservationWrapper):
 
     def step(self, action):
         observation, reward, terminated, truncated, info = self.env.step(action)
-        set_state(observation, info)
         
         if (self.add_strategies):
-            # advance the bprogram
-            self.bprog.choose_event(BEvent(str(action)))
+            agent_action_event = ExternalEvent("Agent Action",{"observation":observation, "action":action, "info":info})
+            self.bprog.super_step(agent_action_event)
             bp_obs = self._get_bp_observation()
             observation = self._concat_observations(observation, bp_obs)
 
@@ -70,10 +68,9 @@ class BPGymEnv(ObservationWrapper):
     
     def reset(self,seed=None, options=None):
         observation, info = self.env.reset()
-        set_state(observation, info)
 
         if (self.add_strategies):
-            self._reset_strategies()
+            self._reset_strategies(observation.shape)
             obs_strats = self._get_bp_observation()
             observation = self._concat_observations(observation, obs_strats)
 
@@ -89,7 +86,8 @@ class BPGymEnv(ObservationWrapper):
         strategies = bthreads_progress.values()
         return np.array([np.array(strategy) for strategy in strategies])
     
-    def _reset_strategies(self):
-        bprogram = BProgram(bthreads=create_strategies(), event_selection_strategy=VirtualBlockEventSelectionStrategy())
+    def _reset_strategies(self, observation_shape):
+        bprogram = BProgram(bthreads=create_strategies(observation_shape),
+                             event_selection_strategy=SimpleEventSelectionStrategy(),
+                             listener=PrintBProgramRunnerListener())
         self.bprog.reset(bprogram)
-        # reset_all_strategies()

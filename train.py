@@ -19,7 +19,7 @@ def train():
     parser.add_argument("--add_bp","-bp", action="store_true", help="Add BP strategies to the environment")
     parser.add_argument("--name_addition","-name", type=str, default="", help="Addition to the model name")
     parser.add_argument("--agent_class",'--a', choices=['ppo','dqn','a2c','rppo'], default='ppo', help="Choose the agent to train")
-    parser.add_argument("--frame_stack",'-fs', type=int, default=None, help="Number of frames to stack")
+    parser.add_argument("--frame_stack",'-fs', type=int, default=4, help="Number of frames to stack")
     parser.add_argument("--logdir",'-l', type=str, default="./tensorboard/", help="Directory to store the logs in")
     parser.add_argument("--num_episodes",'-n', type=int, default=3_000_000, help="Number of episodes to train for")
     parser.add_argument("--env_index",'-e', type=int, default=1, help="Index of the environment to train on")
