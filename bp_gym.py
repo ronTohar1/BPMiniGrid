@@ -19,9 +19,9 @@ class BPGymEnv(ObservationWrapper):
         # self.observation_space = env.observation_space
         self.as_image = as_image
         self.axis = axis
-
+        self.env_name = self.env.unwrapped.spec.id
         # initialize the bprogram containing the strategies
-        if (self.add_strategies and number_of_bthreads() > 0):
+        if (self.add_strategies):
             self.n_bthreads = number_of_bthreads()
             if as_image:
                 # channels = env.observation_space.shape[axis]
@@ -51,6 +51,7 @@ class BPGymEnv(ObservationWrapper):
             new_shape = list(self.observation_space.shape)
             new_shape[self.axis] = self.n_bthreads
             new_shape = tuple(new_shape)
+            print(bp_obs)
             bp_obs = np.reshape(bp_obs, new_shape)
             return np.concatenate((env_obs, bp_obs), axis=self.axis)
 
@@ -63,6 +64,7 @@ class BPGymEnv(ObservationWrapper):
             bp_obs = self._get_bp_observation()
             observation = self._concat_observations(observation, bp_obs)
 
+        # print(observation)
         return observation, reward, terminated, truncated, info 
     
     
@@ -71,6 +73,7 @@ class BPGymEnv(ObservationWrapper):
 
         if (self.add_strategies):
             self._reset_strategies(observation.shape)
+            self.bprog.super_step(ExternalEvent("Reset",{"observation":observation, "info":info}))
             obs_strats = self._get_bp_observation()
             observation = self._concat_observations(observation, obs_strats)
 
@@ -87,7 +90,8 @@ class BPGymEnv(ObservationWrapper):
         return np.array([np.array(strategy) for strategy in strategies])
     
     def _reset_strategies(self, observation_shape):
-        bprogram = BProgram(bthreads=create_strategies(observation_shape),
+        bprogram = BProgram(bthreads=create_strategies(observation_shape, self.env_name),
                              event_selection_strategy=SimpleEventSelectionStrategy(),
-                             listener=PrintBProgramRunnerListener())
+                             listener=PrintBProgramRunnerListener(),
+                             )
         self.bprog.reset(bprogram)
