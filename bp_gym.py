@@ -22,7 +22,7 @@ class BPGymEnv(ObservationWrapper):
         self.env_name = self.env.unwrapped.spec.id
         # initialize the bprogram containing the strategies
         if (self.add_strategies):
-            self.n_bthreads = number_of_bthreads()
+            self.n_bthreads = number_of_bthreads(self.env_name)
             if as_image:
                 # channels = env.observation_space.shape[axis]
                 # w,h= env.observation_space.shape[1], env.observation_space.shape[2]
@@ -36,7 +36,7 @@ class BPGymEnv(ObservationWrapper):
                 observation_space = spaces.Box(shape=new_shape, low=low, high=high, dtype=type)
                 self.observation_space = observation_space
             else:
-                observation_space = spaces.Tuple((self.observation_space, spaces.Box(low=-np.inf, high=np.inf, shape=(1,number_of_bthreads()), dtype=np.float32)))
+                observation_space = spaces.Tuple((self.observation_space, spaces.Box(low=-np.inf, high=np.inf, shape=(1,self.n_bthreads), dtype=np.float32)))
                 self.observation_space = spaces.flatten_space(observation_space)
             
             self.bprog = BPwrapper()

@@ -64,9 +64,11 @@ internal_events = EventSet(lambda event: not isinstance(event, ExternalEvent))
 pick_up_action = EventSet(lambda event: event in agent_events and event.data["action"] == ACTIONS["pickup"])
 drop_action = EventSet(lambda event: event in agent_events and event.data["action"] == ACTIONS["drop"])
 toggle_action = EventSet(lambda event: event in agent_events and event.data["action"] == ACTIONS["toggle"])
+forward_action = EventSet(lambda event: event in agent_events and event.data["action"] == ACTIONS["forward"])
 
 picked_up_key = EventSet(lambda event: event.name == "picked up key")
 dropped_key = EventSet(lambda event: event.name == "dropped key")
+unlocked_door = EventSet(lambda event: event.name == "unlocked door")
 
 def get_distance(pos1, pos2):
 	return np.abs(pos1[0] - pos2[0]) + np.abs(pos1[1] - pos2[1])
@@ -111,7 +113,7 @@ def get_distance_from_door(obs, info):
 ####################################################################
 
 @b_thread
-def pick_up_key():
+def pick_up_key_bt():
 	previous_obs = None
 	previous_info = None
 	while True:
@@ -133,9 +135,9 @@ def pick_up_key():
 
 
 @b_thread
-def dropped_key():
+def drop_key_bt():
 	while True:
-		yield {waitFor: BEvent("picked up key")}
+		yield {waitFor: picked_up_key}
 		while True:
 			e = yield {waitFor: drop_action}
 			obs, info = e.data["observation"], e.data["info"]
@@ -145,66 +147,71 @@ def dropped_key():
 		yield {request: BEvent("dropped key", {"observation":obs, "info":info})}
 
 @b_thread
-def unlock_door():
+def unlock_door_bt():
 	while True:
-		yield {waitFor: BEvent("picked up key")}
-		e = yield {waitFor: EventList([BEvent("dropped key"), toggle_action])}
-		while e != BEvent("dropped key"):
+		yield {waitFor: picked_up_key}
+		e = yield {waitFor: EventList([dropped_key, toggle_action])}
+		while e not in dropped_key: # as long as the key is not dropped
 			obs, info = e.data["observation"], e.data["info"]
 			if is_door_in_front_of_agent(obs, info):
 				yield {request: BEvent("unlocked door")}
-				return # Is this an ok way to termiante bthread
+				return
 			else:
-				e = yield {waitFor: EventList([BEvent("dropped key"), toggle_action])}
+				e = yield {waitFor: EventList([dropped_key, toggle_action])}
 
 @b_thread
-def unlock_env_level(obs_shape):
+def unlock_env_level_bt(obs_shape):
 	name = "unlock level"
 	init_observation(obs_shape, name)
 	while True:
 		update_observation(name, 0) # at level 0
-		yield {waitFor: BEvent("picked up key")}
+		yield {waitFor: picked_up_key}
 		update_observation(name, 1) # at level 1
-		e = yield {waitFor: [BEvent("dropped key"), BEvent("unlocked door")]}
-		if e == BEvent("unlocked door"):
+		e = yield {waitFor: [dropped_key, unlocked_door]}
+		if e in unlocked_door:
 			update_observation(name, 2) # at level 2 - finished the episode successfully
 			yield {waitFor: All()}
 
 @b_thread
-def unlock_env_distance_from_objective(obs_shape):
+def unlock_env_distance_from_objective_bt(obs_shape):
 	name = "unlock_env_distance_from_objective"
 	init_observation(obs_shape, name)
 	e = yield {waitFor: reset_event}
-	distance = get_distance_from_key(e.data["obs"], e.data["info"])
+	distance = get_distance_from_key(e.data["observation"], e.data["info"])
 	key_on_agent = False
 
 	while True:
 		update_observation(name, distance)
 		print("distance from objective: ", distance)
-		e = yield {waitFor: EventList([picked_up_key, dropped_key, BEvent("unlocked door")])}
-		if e == BEvent("unlocked door"):
-			update_observation(name, 0)
-			yield {waitFor: All()}
+		e = yield {waitFor: EventList([forward_action, picked_up_key, dropped_key, unlocked_door])}
 		if e in picked_up_key:
 			key_on_agent = True
+			distance = get_distance_from_door(e.data["observation"], e.data["info"])
+		elif e in dropped_key:
+			key_on_agent = False
+			distance = 1
+	
+		if e in unlocked_door:
+			update_observation(name, 0)
+			yield {waitFor: All()}
 
-		obs, info = e.data["obsservation"], e.data["info"]
-		distance = get_distance_from_key(obs, info) if key_on_agent else get_distance_from_door(obs, info)
-
-		
+		if e in forward_action:
+			obs, info = e.data["observation"], e.data["info"]
+			distance = get_distance_from_door(obs,info) if key_on_agent else get_distance_from_key(obs,info)
 		
 
 
 ####################################################################
 
 
-internal_bthreads_unlock = [pick_up_key,
-					 dropped_key,
-					 unlock_door,
+internal_bthreads_unlock = [pick_up_key_bt,
+					 drop_key_bt,
+					 unlock_door_bt,
 					 ]
 
-observable_bthreads_unlock = [unlock_env_level,
-							  unlock_env_distance_from_objective,
+observable_bthreads_unlock = [
+							# unlock_env_level_bt,
+							  unlock_env_distance_from_objective_bt,
 							  ]
 
 bthreads = {
@@ -212,26 +219,23 @@ bthreads = {
 }
 
 def create_strategies(observation_shape, env_name):
-	observable_bthreads = bthreads[env_name][1]
-	internal_bthreads = bthreads[env_name][0]
-    bthreads = [x(observation_shape) for x in observable_bthreads] + [x() for x in internal_bthreads]
-	return bthreads
+	internal_bthreads, observable_bthreads = bthreads[env_name]
+	return [x() for x in internal_bthreads] + [x(observation_shape) for x in observable_bthreads]
 
-def number_of_bthreads():
-    return len(observable_bthreads)
+
+def number_of_bthreads(env_name):
+    return len(bthreads[env_name][1])
 
 
 class GymBProgram(BProgram):
 	def __init__(self, env: Env,bthreads=None, source_name=None, event_selection_strategy=None, listener=None):
 		self.env = env
-		self.observation_space = env.observation_space
-		self.action_space = env.action_space
 
 		# super init
 		super().__init__(bthreads, source_name, event_selection_strategy, listener)
 
 	def create_strategies(self):
-		return create_strategies(self.observation_space.shape)
+		pass
 	
 
 	
