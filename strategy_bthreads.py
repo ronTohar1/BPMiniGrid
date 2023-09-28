@@ -42,8 +42,8 @@ DIRECTOINS = {
 
 
 def init_observation(observation_shape, name):
-	bt_obs_shape = (observation_shape[0], observation_shape[1],1)
-	bthreads_progress[name] = np.zeros(bt_obs_shape)
+	h,w,_ = observation_shape
+	bthreads_progress[name] = np.zeros((h,w))
 	# return np.zeros(bt_obs_shape)
 
 def update_observation(name, value):
@@ -358,18 +358,6 @@ observable_bthreads_unlock = [
 								unlock_env_level_bt,
 							  unlock_env_distance_from_objective_bt,
 							  ]
-
-internal_bthreads_unlock_pickup = [
-					 pick_up_key_bt,
-					 drop_key_bt,
-					 unlock_door_bt,
-					 ]
-
-observable_bthreads_unlock_pickup = [
-					 pick_up_key_bt,
-					 drop_key_bt,
-					 unlock_door_bt,
-					 ]
 
 bthreads = {
 	"MiniGrid-Unlock-v0": (internal_bthreads_unlock, observable_bthreads_unlock),

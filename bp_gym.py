@@ -92,6 +92,6 @@ class BPGymEnv(ObservationWrapper):
     def _reset_strategies(self, observation_shape):
         bprogram = BProgram(bthreads=create_strategies(observation_shape, self.env_name),
                              event_selection_strategy=SimpleEventSelectionStrategy(),
-                             listener=PrintBProgramRunnerListener(),
+                            #  listener=PrintBProgramRunnerListener(),
                              )
         self.bprog.reset(bprogram)
