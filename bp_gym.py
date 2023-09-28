@@ -45,13 +45,13 @@ class BPGymEnv(ObservationWrapper):
     # env_obs - the observation from the environment (numpy array of 2 - 10x10 boards)
     # bp_obs - the observation from the strategies (numpy array of x - 10x10 boards)
     def _concat_observations(self, env_obs, bp_obs):
+        print(bp_obs)
         if not self.as_image:
             return (env_obs, bp_obs)
         else:
             new_shape = list(self.observation_space.shape)
             new_shape[self.axis] = self.n_bthreads
             new_shape = tuple(new_shape)
-            # print(bp_obs)
             bp_obs = np.reshape(bp_obs, new_shape)
             return np.concatenate((env_obs, bp_obs), axis=self.axis)
 
@@ -64,7 +64,7 @@ class BPGymEnv(ObservationWrapper):
             bp_obs = self._get_bp_observation()
             observation = self._concat_observations(observation, bp_obs)
 
-        print(observation)
+        # print(observation)
         return observation, reward, terminated, truncated, info 
     
     
