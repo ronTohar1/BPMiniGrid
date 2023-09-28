@@ -26,16 +26,7 @@ def main():
 
 
 def main2():
-    # env = gym.make("MiniGrid-BlockedUnlockPickup-v0", render_mode="human")
-    # env = FullyObsWrapper(env)
-    # env = ObjectsLocationWrapper(env, print_location=True)
-    # env = OnlyImageObservation(env)
-    # env = BPGymEnv(env, add_strategies=True, as_image=True, axis=2)
-    # print(env.observation_space)
-    # env = ManualControl(env)
-
-    # env = create_environment(env_name="MiniGrid-KeyCorridorS3R3-v0",add_strategies=False, render_mode="human")
-    # env = CountBackAndForthTurns(env)
+    # env = create_environment("MiniGrid-UnlockPickup-v0", render_mode="human", add_strategies=True, partially_observable=False)
     env = create_environment("MiniGrid-Unlock-v0", render_mode="human", add_strategies=True, partially_observable=False)
     print(env.observation_space)
     env = ManualControl(env)

@@ -2,8 +2,8 @@ import gymnasium
 from gymnasium import spaces
 from bppy import BProgram
 from bp_wrapper import BPwrapper
-from strategy_bthreads import create_strategies, number_of_bthreads, bthreads_progress
-# from priority_event_selection_strategy import PriorityEventSelectionStrategy
+# from strategy_bthreads import create_strategies, number_of_bthreads, bthreads_progress
+from strategy_bthreads import *
 import numpy as np
 from bppy import *
 # from util import BOARD_SIZE
@@ -51,7 +51,7 @@ class BPGymEnv(ObservationWrapper):
             new_shape = list(self.observation_space.shape)
             new_shape[self.axis] = self.n_bthreads
             new_shape = tuple(new_shape)
-            print(bp_obs)
+            # print(bp_obs)
             bp_obs = np.reshape(bp_obs, new_shape)
             return np.concatenate((env_obs, bp_obs), axis=self.axis)
 
@@ -64,7 +64,7 @@ class BPGymEnv(ObservationWrapper):
             bp_obs = self._get_bp_observation()
             observation = self._concat_observations(observation, bp_obs)
 
-        # print(observation)
+        print(observation)
         return observation, reward, terminated, truncated, info 
     
     
