@@ -820,7 +820,7 @@ strategies_unlock_po = [unlock_level_po,
 						count_turns_in_direction_right,
 						]
 
-strategies_bts = strategies_unlock_pickup_po
+strategies_bts = strategies_unlock
 
 def create_strategies():
 	# bthreads = [x() for x in strategies_bts + [request_all_moves()]]

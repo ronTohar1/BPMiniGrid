@@ -36,7 +36,7 @@ def main2():
 
     # env = create_environment(env_name="MiniGrid-KeyCorridorS3R3-v0",add_strategies=False, render_mode="human")
     # env = CountBackAndForthTurns(env)
-    env = create_environment("MiniGrid-UnlockPickup-v0", render_mode="human", add_strategies=True, partially_observable=True)
+    env = create_environment("MiniGrid-Unlock-v0", render_mode="human", add_strategies=True, partially_observable=False)
     env = ManualControl(env)
     env.start()
 
