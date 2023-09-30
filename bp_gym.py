@@ -45,7 +45,7 @@ class BPGymEnv(ObservationWrapper):
     # env_obs - the observation from the environment (numpy array of 2 - 10x10 boards)
     # bp_obs - the observation from the strategies (numpy array of x - 10x10 boards)
     def _concat_observations(self, env_obs, bp_obs):
-        print(bp_obs)
+        # print(bp_obs)
         if not self.as_image:
             return (env_obs, bp_obs)
         else:
@@ -86,12 +86,13 @@ class BPGymEnv(ObservationWrapper):
         return self.env.close()
 
     def _get_bp_observation(self):
-        strategies = bthreads_progress.values()
-        return np.array([np.array(strategy) for strategy in strategies])
+        return self.bthreads_progress.get_observations()
     
     def _reset_strategies(self, observation_shape):
-        bprogram = BProgram(bthreads=create_strategies(observation_shape, self.env_name),
+        bthreads, bthreads_progress = create_strategies(observation_shape, self.env_name)
+        bprogram = BProgram(bthreads=bthreads,
                              event_selection_strategy=SimpleEventSelectionStrategy(),
                             #  listener=PrintBProgramRunnerListener(),
                              )
         self.bprog.reset(bprogram)
+        self.bthreads_progress = bthreads_progress

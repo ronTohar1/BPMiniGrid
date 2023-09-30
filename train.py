@@ -19,14 +19,15 @@ def train():
     parser.add_argument("--add_bp","-bp", action="store_true", help="Add BP strategies to the environment")
     parser.add_argument("--name_addition","-name", type=str, default="", help="Addition to the model name")
     parser.add_argument("--agent_class",'--a', choices=['ppo','dqn','a2c','rppo'], default='ppo', help="Choose the agent to train")
-    parser.add_argument("--frame_stack",'-fs', type=int, default=4, help="Number of frames to stack")
+    parser.add_argument("--frame_stack",'-fs', type=int, default=None, help="Number of frames to stack")
     parser.add_argument("--logdir",'-l', type=str, default="./tensorboard/", help="Directory to store the logs in")
     parser.add_argument("--num_episodes",'-n', type=int, default=3_000_000, help="Number of episodes to train for")
-    parser.add_argument("--env_index",'-e', type=int, default=1, help="Index of the environment to train on")
+    parser.add_argument("--env_index",'-e', type=int, default=5, help="Index of the environment to train on")
     parser.add_argument("--learning_rate",'-lr', type=float, default=0.0001, help="Learning rate of the agent")
     parser.add_argument("--network_architecture",'-na', type=str, default="[128,128]", help="Network architecture of the agent")
     parser.add_argument("--features_dim",'-fd', type=int, default=512, help="Dimension of the features extracted from the image")
     parser.add_argument("--seed",'-s', type=int, default=0, help="Seed for the agent")
+    parser.add_argument("--partial_obs", "-po", action="store_true")
     args = parser.parse_args()
 
 
@@ -40,6 +41,8 @@ def train():
     net_arch = eval(args.network_architecture)
     features_dim = args.features_dim
     seed = args.seed
+    # po = args.partial_obs
+    po = False
     model = {"ppo":PPO,"dqn":DQN,"a2c":A2C,"rppo":RecurrentPPO}[args.agent_class]
 
 
@@ -56,7 +59,7 @@ def train():
     verbose=0
     num_cpus = 6
     def create():
-        return create_environment(add_strategies=add_strategies, env_name=env_name, stack_frames=frame_stack)
+        return create_environment(add_strategies=add_strategies, env_name=env_name, stack_frames=frame_stack, partially_observable=po)
     
     eval_env = create()
     env = make_vec_env(create, n_envs=num_cpus, seed=50)
@@ -78,6 +81,7 @@ def train():
     model_name += name + f'_{net_arch}_fd{features_dim}'
     model_name += f'_Frames{frame_stack}' if frame_stack is not None else ""
     model_name += f'_{env_name}'
+    model_name += '_PO' if po else '_NOPO'
     model_name += "_BP" if add_strategies else "_NOBP"
 
 
@@ -109,8 +113,8 @@ def train():
 
     agent = model(policy, env, verbose=verbose, tensorboard_log=tensorlog, policy_kwargs=policy_kwargs, seed=seed
                   , learning_rate=lr) 
+    agent.learn(num_episodes, log_interval=1, tb_log_name=model_name)
     # agent.learn(num_episodes, callback=eval_callback, log_interval=1, tb_log_name=model_name)
-    print(agent.policy)
 
 if __name__ == '__main__':
     train()
