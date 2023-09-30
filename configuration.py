@@ -12,6 +12,8 @@ class Config:
                 network_architecture = "[128,128]",
                 features_dim = 512,
                 seed = 50,
+                partial_obs = False,
+                generalBT = True,
                     ):
         self.add_bp = add_bp
         self.name_addition = name_addition
@@ -24,6 +26,8 @@ class Config:
         self.network_architecture = network_architecture
         self.features_dim = features_dim
         self.seed = seed
+        self.partial_obs = partial_obs
+        self.generalBT = generalBT
 
     def to_string(self):
         # return f"Config({self.__dict__})"

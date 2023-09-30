@@ -2,7 +2,6 @@ import gymnasium
 from gymnasium import spaces
 from bppy import BProgram
 from bp_wrapper import BPwrapper
-# from strategy_bthreads import create_strategies, number_of_bthreads, bthreads_progress
 from strategy_bthreads import *
 import numpy as np
 from bppy import *
@@ -11,7 +10,7 @@ from gymnasium import ObservationWrapper
 from bp_events import *
 
 class BPGymEnv(ObservationWrapper):
-    def __init__(self, env, add_strategies=False, as_image=False, axis=0, **kwargs): # Expecting an environment with a gymnasium interface
+    def __init__(self, env, add_strategies=False, as_image=False, axis=0, generalBT=True,**kwargs): # Expecting an environment with a gymnasium interface
         super().__init__(env, **kwargs)
         self.add_strategies = add_strategies
         # self.env = env
@@ -20,13 +19,11 @@ class BPGymEnv(ObservationWrapper):
         self.as_image = as_image
         self.axis = axis
         self.env_name = self.env.unwrapped.spec.id
+        self.generalBT = generalBT
         # initialize the bprogram containing the strategies
         if (self.add_strategies):
-            self.n_bthreads = number_of_bthreads(self.env_name)
+            self.n_bthreads = number_of_bthreads(self.env_name, add_general_bthreads=self.generalBT)
             if as_image:
-                # channels = env.observation_space.shape[axis]
-                # w,h= env.observation_space.shape[1], env.observation_space.shape[2]
-                # shape=(number_of_bthreads() + channels, w, h)
                 
                 low,high,shape,type = 0, 255, env.observation_space.shape, env.observation_space.dtype
                 new_shape = list(shape)
@@ -89,7 +86,7 @@ class BPGymEnv(ObservationWrapper):
         return self.bthreads_progress.get_observations()
     
     def _reset_strategies(self, observation_shape):
-        bthreads, bthreads_progress = create_strategies(observation_shape, self.env_name)
+        bthreads, bthreads_progress = create_strategies(observation_shape, self.env_name, add_general_bthreads=self.generalBT)
         bprogram = BProgram(bthreads=bthreads,
                              event_selection_strategy=SimpleEventSelectionStrategy(),
                             #  listener=PrintBProgramRunnerListener(),

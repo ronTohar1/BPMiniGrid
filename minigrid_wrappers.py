@@ -96,30 +96,13 @@ class OnlyImageObservation(ObservationWrapper):
 
 
 
-class CountBackAndForthTurns(Wrapper):
-    def __init__(self, env: Env):
-        super().__init__(env)
-        self.last_action = None
-        self.back_and_forth_turns = 0
+class ChangeAxisWrapper(ObservationWrapper):
+    def __init__(self, env: Env, axis=0, **kwargs):
+        super().__init__(env,**kwargs)
+        self.axis = axis
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(np.moveaxis(self.observation_space.shape, -1, 0)), dtype=np.uint8)
+        self.action_space = env.action_space
 
-    def step(self, action: Any) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
-        obs, reward, terminated, truncated, info = self.env.step(action)
-        if self.last_action is not None:
-            if action == 0 and self.last_action == 1:
-                self.back_and_forth_turns = 1
-            elif action == 1 and self.last_action == 0:
-                self.back_and_forth_turns = 1
-            else:
-                self.back_and_forth_turns = 0
-        self.last_action = action
-        info["back_and_forth_turns"] = self.back_and_forth_turns
-
-
-        return obs, reward, terminated, truncated, info
-
-    def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[Any, dict[str, Any]]:
-        self.last_action = None
-        self.back_and_forth_turns = 0
-        
-        return super().reset(seed=seed, options=options)
+    def observation(self, observation):
+        return np.moveaxis(observation, -1 , 0)
     

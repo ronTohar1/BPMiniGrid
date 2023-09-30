@@ -104,6 +104,9 @@ unlocked_door = EventSet(lambda event: event.name == "unlocked door")
 opened_door = EventSet(lambda event: event.name == "opened door")
 closed_door = EventSet(lambda event: event.name == "closed door")
 picked_up_box = EventSet(lambda event: event.name == "picked up box")
+passed_door_right = EventSet(lambda event: event.name == "passed door right")
+passed_door_left = EventSet(lambda event: event.name == "passed door left")
+
 
 def get_distance(pos1, pos2):
 	return np.abs(pos1[0] - pos2[0]) + np.abs(pos1[1] - pos2[1])
@@ -163,6 +166,9 @@ def get_distance_from_key(obs, info):
 
 def get_distance_from_door(obs, info):
 	return get_distance_from(obs, info, "door")
+
+def get_distance_from_box(obs, info):
+	return get_distance_from(obs, info, "box")
 
 def get_key_position(obs,info):
 	return info["objects_location"]["key"]
@@ -321,30 +327,46 @@ def picked_up_box_bt():
 			yield {request: BEvent("picked up box", {"observation":obs, "info":info})}
 
 @b_thread
+def passed_door_bt():
+	left_to_door = True
+	while True:
+		yield {waitFor: forward_action}
+		obs, info = e.data["observation"], e.data["info"]
+		if agent_is_right_to_door(obs, info):
+			left_to_door = False
+			yield {request: BEvent("passed door right", {"observation":obs, "info":info})}
+		elif not left_to_door:
+			left_to_door = True
+			yield {request: BEvent("passed door left", {"observation":obs, "info":info})}
+
+@b_thread
 def unlock_pickup_env_level_bt(bt_obs:BThreadObservation):
 	has_key = False
 	open_door = False
+	right_to_door = False
+	unlocked_door = False
 	while True:
-		if open_door:
-			bt_obs.update_observation(3)
-			if not has_key:
-				bt_obs.update_observation(4)
-		else:
+		if right_to_door:
+			bt_obs.update_observation(5) if has_key else bt_obs.update_observation(6)
+		elif open_door: # left to door and door is open
+			bt_obs.update_observation(3) if has_key else bt_obs.update_observation(4)
+		else: 
 			bt_obs.update_observation(0)
-			if has_key:
+			if has_key or unlocked_door:
 				bt_obs.update_observation(1)
 
-		e = yield {waitFor: [picked_up_key, dropped_key, opened_door, closed_door, picked_up_box]}
-		if e in picked_up_key:
-			has_key = True
-		if e in dropped_key:
-			has_key = False
-		if e in opened_door:
-			open_door = True
-		if e in closed_door:
-			open_door = False
+		e = yield {waitFor: [picked_up_key, dropped_key, opened_door, passed_door_right, passed_door_left, unlocked_door ,picked_up_box]}
+		# update the state
+		has_key = e in picked_up_key
+		has_key = not e in dropped_key
+		open_door = e in opened_door
+		open_door = not e in closed_door
+		right_to_door = e in passed_door_right
+		right_to_door = not e in passed_door_left
+		unlocked_door = e in unlocked_door
+
 		if e in picked_up_box:
-			bt_obs.update_observation(5)
+			bt_obs.update_observation(7)
 			return
 		
 
@@ -356,6 +378,17 @@ def unlock_pickup_env_distance_from_objective_bt(bt_obs: BThreadObservation):
 
 	while True:
 		bt_obs.update_observation(distance)
+		e = yield {waitFor: [picked_up_key, dropped_key, opened_door, closed_door, picked_up_box,passed_door_right,passed_door_left]}
+		if e in picked_up_key:
+			key_on_agent = True
+			distance = get_distance_from_door(e.data["observation"], e.data["info"])
+		if e in dropped_key:
+			key_on_agent = False
+			distance = 1
+		if e in opened_door:
+			distance = get_distance_from_box(e.data["observation"], e.data["info"])
+		if e in closed_door:
+			distance = get_distance_from_door(e.data["observation"], e.data["info"])
 							
 
 			
@@ -380,6 +413,15 @@ observable_bthreads_unlock = [
 								unlock_env_level_bt,
 							  unlock_env_distance_from_objective_bt,
 							  ]
+
+internal_bthreads_unlock_pickup = [pick_up_key_bt,
+									drop_key_bt,
+									unlock_door_bt,
+									open_door_bt,
+									closed_door_bt,
+									picked_up_box_bt,
+									passed_door_bt,
+									]								
 
 bthreads = {
 	"MiniGrid-Unlock-v0": (internal_bthreads_unlock, observable_bthreads_unlock),

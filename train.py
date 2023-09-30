@@ -28,6 +28,7 @@ def train():
     parser.add_argument("--features_dim",'-fd', type=int, default=512, help="Dimension of the features extracted from the image")
     parser.add_argument("--seed",'-s', type=int, default=0, help="Seed for the agent")
     parser.add_argument("--partial_obs", "-po", action="store_true")
+    parser.add_argument("--generalBT", "-gbt", action="store_true", help="Use the general BThreads")
     args = parser.parse_args()
 
 
@@ -41,8 +42,9 @@ def train():
     net_arch = eval(args.network_architecture)
     features_dim = args.features_dim
     seed = args.seed
-    # po = args.partial_obs
-    po = False
+    po = args.partial_obs
+    generalBT = args.generalBT
+
     model = {"ppo":PPO,"dqn":DQN,"a2c":A2C,"rppo":RecurrentPPO}[args.agent_class]
 
 
@@ -59,7 +61,7 @@ def train():
     verbose=0
     num_cpus = 6
     def create():
-        return create_environment(add_strategies=add_strategies, env_name=env_name, stack_frames=frame_stack, partially_observable=po)
+        return create_environment(add_strategies=add_strategies, env_name=env_name, stack_frames=frame_stack, partially_observable=po, generalBT=generalBT)
     
     eval_env = create()
     env = make_vec_env(create, n_envs=num_cpus, seed=50)
@@ -78,6 +80,7 @@ def train():
     model_name = model.__name__
     # model_name += f'_lr{lr}_gamma{gamma}_ls{ls}_bs{bs}_steps{num_episodes/1000000}_tf{tf}_expfrac{explore_frac}'
     model_name += f'_ep{num_episodes/1_000_000}M_lr{lr}_'
+    model_name +="" if not generalBT else "_GeneralBT_"
     model_name += name + f'_{net_arch}_fd{features_dim}'
     model_name += f'_Frames{frame_stack}' if frame_stack is not None else ""
     model_name += f'_{env_name}'
