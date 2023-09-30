@@ -49,6 +49,41 @@ def update_observation(name, value):
 # def update_observation(name, obs):
 # 	bthreads_progress[name] = obs
 
+
+class BThreadObservation():
+	def __init__(self, name, obs_shape):
+		self.name = name
+		self.observation = None
+		self.obs_shape = obs_shape
+
+	def init_observation(self):
+		self.observation = np.zeros(self.obs_shape)
+
+	def update_observation(self, value):
+		self.observation.fill(value)
+
+	def get_observation(self):
+		return self.observation
+
+
+class BThreadsObservations():
+	def __init__(self):
+		# self.observation_shape = (observation_shape[0], observation_shape[1])
+		self.bthreads_obs = []
+
+	# def init_bthread_obs(self, name):
+	# 	self.bthreads_obs[name] = np.zeros(self.observation_shape)
+
+	# def update_observation(self, name, value):
+	# 	self.bthreads_obs[name].fill(value)
+
+	def get_observations(self):
+		return np.array([bt_obs.get_observation() for bt_obs in self.bthreads_obs])
+
+	def add_new_bt_observation(self, bthread_observation: BThreadObservation):
+		self.bthreads_obs.append(bthread_observation)
+		bthread_observation.init_observation()
+
 ####################################################################
 ####################################################################
 
@@ -137,12 +172,10 @@ def get_box_position(obs,info):
 ####################################################################
 
 @b_thread
-def count_left_turns(bthreads_observations):
-	name = "count_left_turns"
-	bthreads_observations.init_bthread_obs(name)
+def count_left_turns(bt_obs: BThreadObservation):
 	turns_left = 0
 	while True:
-		bthreads_observations.update_observation(name, turns_left)
+		bt_obs.update_observation(turns_left)
 		e = yield {waitFor: agent_events}
 		if e.data["action"] == ACTIONS["left"]:
 			turns_left += 1
@@ -150,12 +183,10 @@ def count_left_turns(bthreads_observations):
 			turns_left = 0
 
 @b_thread
-def count_right_turns(bthreads_observations):
-	name = "count_right_turns"
-	bthreads_observations.init_bthread_obs(name)
+def count_right_turns(bt_obs:BThreadObservation):
 	turns_right = 0
 	while True:
-		bthreads_observations.update_observation(name, turns_right)
+		bt_obs.update_observation(turns_right)
 		e = yield {waitFor: agent_events}
 		if e.data["action"] == ACTIONS["right"]:
 			turns_right += 1
@@ -222,28 +253,24 @@ def unlock_door_bt():
 			return 
 
 @b_thread
-def unlock_env_level_bt(bthreads_observations):
+def unlock_env_level_bt(bt_obs:BThreadObservation):
 	name = "unlock level"
-	bthreads_observations.init_bthread_obs(name)
 	while True:
-		bthreads_observations.update_observation(name, 0) # at level 0
+		bt_obs.update_observation(0)
 		yield {waitFor: picked_up_key}
-		bthreads_observations.update_observation(name, 1) # at level 1
+		bt_obs.update_observation(1)
 		e = yield {waitFor: EventList([dropped_key, unlocked_door])}
 		if e in unlocked_door:
-			bthreads_observations.update_observation(name, 2)
+			bt_obs.update_observation(2)
 			return 
 
 @b_thread
-def unlock_env_distance_from_objective_bt(bthreads_observations):
-	name = "unlock_env_distance_from_objective"
-	bthreads_observations.init_bthread_obs(name)
+def unlock_env_distance_from_objective_bt(bt_obs: BThreadObservation):
 	e = yield {waitFor: reset_event}
 	distance = get_distance_from_key(e.data["observation"], e.data["info"])
 	key_on_agent = False
-
 	while True:
-		bthreads_observations.update_observation(name, distance)
+		bt_obs.update_observation(distance)
 		e = yield {waitFor: EventList([forward_action, picked_up_key, dropped_key, unlocked_door])}
 		if e in picked_up_key:
 			key_on_agent = True
@@ -253,7 +280,7 @@ def unlock_env_distance_from_objective_bt(bthreads_observations):
 			distance = 1
 	
 		if e in unlocked_door:
-			bthreads_observations.update_observation(name, 0)
+			bt_obs.update_observation(0)
 			return
 
 		if e in forward_action:
@@ -294,20 +321,18 @@ def picked_up_box_bt():
 			yield {request: BEvent("picked up box", {"observation":obs, "info":info})}
 
 @b_thread
-def unlock_pickup_env_level_bt(bthreads_observations):
-	name = "unlock level"
-	init_observation(obs_shape, name)
+def unlock_pickup_env_level_bt(bt_obs:BThreadObservation):
 	has_key = False
 	open_door = False
 	while True:
 		if open_door:
-			update_observation(name, 3)
+			bt_obs.update_observation(3)
 			if not has_key:
-				update_observation(name, 4)
+				bt_obs.update_observation(4)
 		else:
-			update_observation(name, 0)
+			bt_obs.update_observation(0)
 			if has_key:
-				update_observation(name, 1)
+				bt_obs.update_observation(1)
 
 		e = yield {waitFor: [picked_up_key, dropped_key, opened_door, closed_door, picked_up_box]}
 		if e in picked_up_key:
@@ -319,20 +344,18 @@ def unlock_pickup_env_level_bt(bthreads_observations):
 		if e in closed_door:
 			open_door = False
 		if e in picked_up_box:
-			update_observation(name, 5)
+			bt_obs.update_observation(5)
 			return
 		
 
 @b_thread
-def unlock_pickup_env_distance_from_objective_bt(bthreads_observations):
-	name = "unlock_env_distance_from_objective"
-	init_observation(obs_shape, name)
+def unlock_pickup_env_distance_from_objective_bt(bt_obs: BThreadObservation):
 	e = yield {waitFor: reset_event}
 	distance = get_distance_from_key(e.data["observation"], e.data["info"])
 	key_on_agent = False
 
 	while True:
-		update_observation(name, distance)
+		bt_obs.update_observation(distance)
 							
 
 			
@@ -364,41 +387,27 @@ bthreads = {
 }
 
 def create_strategies(observation_shape, env_name, add_general_bthreads=True):
-	bthreads_observations = BThreadsObservations(observation_shape)
+	bt_obs_shape = (observation_shape[0], observation_shape[1])
+
+	bthreads_observations = BThreadsObservations()
 	internal_bthreads, observable_bthreads = bthreads[env_name]
-	environment_bthreads = [x() for x in internal_bthreads] + [x(bthreads_observations) for x in observable_bthreads]
-	if add_general_bthreads:
-		environment_bthreads += [x(bthreads_observations) for x in observable_bthreads_general]
+
+	all_observable_bthreads = observable_bthreads + observable_bthreads_general if add_general_bthreads else observable_bthreads
+
+	bt_obs_arr = [BThreadObservation(x.__name__, bt_obs_shape) for x in all_observable_bthreads]
+	environment_bthreads = [x() for x in internal_bthreads] + [x(bt_obs_arr[i]) for i,x in enumerate(all_observable_bthreads)]
+	for bt_obs in bt_obs_arr:
+		bthreads_observations.add_new_bt_observation(bt_obs)
+	
 	return environment_bthreads, bthreads_observations
 
 
 def number_of_bthreads(env_name, add_general_bthreads=True):
 	additional_bthreads = 0 if not add_general_bthreads else len(observable_bthreads_general)
-	return len(bthreads[env_name][1]) + additional_bthreads
+	n_bts = len(bthreads[env_name][1]) + additional_bthreads
+	return n_bts
 
 
-class GymBProgram(BProgram):
-	def __init__(self, env: Env,bthreads=None, source_name=None, event_selection_strategy=None, listener=None):
-		self.env = env
 
-		# super init
-		super().__init__(bthreads, source_name, event_selection_strategy, listener)
-
-	def create_strategies(self):
-		pass
-	
-class BThreadsObservations():
-	def __init__(self, observation_shape):
-		self.observation_shape = (observation_shape[0], observation_shape[1])
-		self.bthreads_obs = {}
-
-	def init_bthread_obs(self, name):
-		self.bthreads_obs[name] = np.zeros(self.observation_shape)
-
-	def update_observation(self, name, value):
-		self.bthreads_obs[name].fill(value)
-
-	def get_observations(self):
-		return np.array([np.array(obs) for obs in self.bthreads_obs.values()])
 
 	
