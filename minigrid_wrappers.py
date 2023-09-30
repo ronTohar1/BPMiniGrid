@@ -4,6 +4,7 @@ from gymnasium import ObservationWrapper, Wrapper
 from gymnasium.core import Env
 from minigrid.core.constants import OBJECT_TO_IDX
 import numpy as np
+from gymnasium.spaces import Box
 
 
 # Adds location of some objects to the info dict
@@ -97,10 +98,11 @@ class OnlyImageObservation(ObservationWrapper):
 
 
 class ChangeAxisWrapper(ObservationWrapper):
-    def __init__(self, env: Env, axis=0, **kwargs):
+    def __init__(self, env: Env, **kwargs):
         super().__init__(env,**kwargs)
-        self.axis = axis
-        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(np.moveaxis(self.observation_space.shape, -1, 0)), dtype=np.uint8)
+        old_shape = self.observation_space.shape
+        new_shape = (old_shape[2],old_shape[0],old_shape[1])
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=new_shape, dtype=np.uint8)
         self.action_space = env.action_space
 
     def observation(self, observation):

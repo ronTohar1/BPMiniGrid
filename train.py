@@ -64,6 +64,7 @@ def train():
         return create_environment(add_strategies=add_strategies, env_name=env_name, stack_frames=frame_stack, partially_observable=po, generalBT=generalBT)
     
     eval_env = create()
+    print("Observation Space:", eval_env.observation_space)
     env = make_vec_env(create, n_envs=num_cpus, seed=50)
     # eval_env = make_vec_env(create, n_envs=1,seed=50)
 
