@@ -7,48 +7,7 @@ import numpy as np
 import math
 from itertools import combinations
 from bp_events import *
-# shared data - maybe something like {num_ships_found, num_2_size_found, found_5_size:True\False....} 
-# And then bthreads can listen to those events (wait for update data event) and than look at the data.
-# e.g found the 2 size ship, then no need to hit in distances of 2 only at 3 and more.
-
-ACTIONS_ALL = {
-        0: 'Turn Left',
-        1: 'Turn Right',
-        2: 'Forward',
-        3: 'Pickup',
-        4: 'Drop',
-		5: "Toggle",
-		6: "Done",
-}
-
-ACTIONS = {
-	"left": 0,
-	"right": 1,
-	"forward": 2,
-	"pickup": 3,
-	"drop": 4,
-	"toggle": 5,
-	"done": 6
-}
-ACTIONS_NAMES = Enum('ACTIONS', list(ACTIONS.keys()))
-DIRECTOINS = {
-	"right": 0,
-	"down": 1,
-	"left": 2,
-	"up": 3
-}
-
-
-def init_observation(observation_shape, name):
-	h,w,_ = observation_shape
-	pass
-	# return np.zeros(bt_obs_shape)
-
-def update_observation(name, value):
-	pass
-# def update_observation(name, obs):
-# 	bthreads_progress[name] = obs
-
+from observation_inference import *
 
 class BThreadObservation():
 	def __init__(self, name, obs_shape):
@@ -68,14 +27,7 @@ class BThreadObservation():
 
 class BThreadsObservations():
 	def __init__(self):
-		# self.observation_shape = (observation_shape[0], observation_shape[1])
 		self.bthreads_obs = []
-
-	# def init_bthread_obs(self, name):
-	# 	self.bthreads_obs[name] = np.zeros(self.observation_shape)
-
-	# def update_observation(self, name, value):
-	# 	self.bthreads_obs[name].fill(value)
 
 	def get_observations(self):
 		return np.array([bt_obs.get_observation() for bt_obs in self.bthreads_obs])
@@ -110,82 +62,8 @@ picked_up_ball = EventSet(lambda event: event.name == "picked up ball")
 dropped_ball = EventSet(lambda event: event.name == "dropped ball")
 blocked_door = EventSet(lambda event: event.name == "blocked door")
 unblocked_door = EventSet(lambda event: event.name == "unblocked door")
+reached_goal = EventSet(lambda event: event.name == "reached goal")
 
-
-
-def get_distance(pos1, pos2):
-	return np.abs(pos1[0] - pos2[0]) + np.abs(pos1[1] - pos2[1])
-
-def get_cell_in_front_of_agent(agent_pos, agent_dir):
-	if agent_dir == DIRECTOINS["right"]:
-		return (agent_pos[0] + 1, agent_pos[1])
-	elif agent_dir == DIRECTOINS["down"]:
-		return (agent_pos[0], agent_pos[1] + 1)
-	elif agent_dir == DIRECTOINS["left"]:
-		return (agent_pos[0] - 1, agent_pos[1])
-	elif agent_dir == DIRECTOINS["up"]:
-		return (agent_pos[0], agent_pos[1] - 1)
-	else:
-		raise Exception("Invalid agent direction")
-
-def is_in_front_of_agent(obs,info,item):
-	agent_dir = info["agent_direction"]
-	agent_pos = info["objects_location"]["agent"]
-	item_pos = info["objects_location"][item]
-	cell_in_front_of_agent = get_cell_in_front_of_agent(agent_pos, agent_dir)
-	return cell_in_front_of_agent == item_pos
-
-def is_key_in_front_of_agent(obs, info):
-	return is_in_front_of_agent(obs, info, "key")
-
-def is_door_in_front_of_agent(obs, info):
-	return is_in_front_of_agent(obs, info, "door")
-
-def is_door_unlocked(obs, info):
-	door_state = info["objects_location"]["door_state"]
-	if door_state is None: # agent is on the door so its unlocked and open
-		return True
-	return door_state != 2 # 2 is locked
-
-def is_door_open(obs,info):
-	door_state = info["objects_location"]["door_state"]
-	if door_state is None: # agent is on the door so its unlocked and open
-		return True
-	return door_state == 0 # 0 is open
-
-def agent_is_right_to_door(obs, info):
-	agent_pos = info["objects_location"]["agent"]
-	door_pos = info["objects_location"]["door"]
-	if door_pos is None:
-		return True
-	return agent_pos[0] > door_pos[0]
-
-
-def get_distance_from(obs,info,item):
-	agent_pos = info["objects_location"]["agent"]
-	item_pos = info["objects_location"][item]
-	return get_distance(agent_pos, item_pos)
-
-def get_distance_from_key(obs, info):
-	return get_distance_from(obs, info, "key")
-
-def get_distance_from_door(obs, info):
-	return get_distance_from(obs, info, "door")
-
-def get_distance_from_box(obs, info):
-	return get_distance_from(obs, info, "box")
-
-def get_distance_from_ball(obs, info):
-	return get_distance_from(obs, info, "ball")
-
-def get_key_position(obs,info):
-	return info["objects_location"]["key"]
-
-def get_box_position(obs,info):
-	return info["objects_location"]["box"]
-
-def get_ball_position(obs,info):
-	return info["objects_location"]["ball"]
 ####################################################################
 
 @b_thread
@@ -535,7 +413,6 @@ def bup_env_level_bt(bt_obs:BThreadObservation):
 		else:
 			level = 3 if has_key else 2
 		bt_obs.update_observation(level)
-		print("Level: ", level)
 		e = yield {waitFor: EventList([picked_up_key, dropped_key, unlocked_door ,picked_up_box, unblocked_door, picked_up_ball, dropped_ball])}
 		# update the state
 		if e in picked_up_key:
@@ -552,7 +429,6 @@ def bup_env_level_bt(bt_obs:BThreadObservation):
 			has_ball = False
 		if e in picked_up_box:
 			bt_obs.update_observation(6)
-			print("Level: ", 6)
 			return
 	
 @b_thread
@@ -573,7 +449,6 @@ def bup_env_distance_bt(bt_obs: BThreadObservation):
 		else:
 			distance = get_distance_from_key(obs, info)
 
-		print("distance:", distance)
 		bt_obs.update_observation(distance)
 		e = yield {waitFor: EventList([forward_action ,picked_up_key, dropped_key, unlocked_door ,picked_up_box, unblocked_door, picked_up_ball, dropped_ball])}
 		# update the state
@@ -594,12 +469,95 @@ def bup_env_distance_bt(bt_obs: BThreadObservation):
 
 		if e in picked_up_box:
 			bt_obs.update_observation(0)
-			print("distance:", 0)
 			return
 
 
 
 ####################################################################
+
+@b_thread
+def reached_goal_bt():
+	while True:
+		e = yield {waitFor: forward_action}
+		obs, info = e.data["observation"], e.data["info"]
+		if get_goal_position(obs, info) == get_agent_position(obs, info):
+			yield {request: BEvent("reached goal", {"observation":obs, "info":info})}
+			return
+		
+@b_thread
+def exp_doorkey_env_level_bt(bt_obs: BThreadObservation):
+	while True:
+		yield {waitFor: picked_up_key}
+		bt_obs.update_observation(1)
+		while True:
+			e = yield {waitFor: EventList([dropped_key, unlocked_door])}
+			if e in unlocked_door:
+
+@b_thread
+def doorkey_env_level_bt(bt_obs: BThreadObservation):
+	has_key, open_door, right_to_door = False, False, False
+	while True:
+		if open_door or right_to_door:
+			level = 2
+		elif has_key:
+			level = 1
+		else:
+			level = 0
+		
+		bt_obs.update_observation(level)
+		e = yield {waitFor: EventList([picked_up_key, dropped_key, opened_door, closed_door, reached_goal, passed_door_left, passed_door_right])}
+		if e in reached_goal:
+			bt_obs.update_observation(3)
+			return
+		
+		if e in picked_up_key:
+			has_key = True
+		if e in dropped_key:
+			has_key = False
+		if e in opened_door:
+			open_door = True
+		if e in closed_door:
+			open_door = False
+		if e in passed_door_right:
+			right_to_door = True
+		if e in passed_door_left:
+			right_to_door = False
+		
+def doorkey_env_distance_bt(bt_obs: BThreadObservation):
+	e = yield {waitFor: reset_event}
+	distance = get_distance_from_key(e.data["observation"], e.data["info"])
+	has_key, open_door, right_to_door = False, False, False
+	while True:
+		if open_door or right_to_door:
+			distance = get_distance_from_goal(e.data["observation"], e.data["info"])
+		elif has_key:
+			distance = get_distance_from_door(e.data["observation"], e.data["info"])
+		else:
+			distance = get_distance_from_key(e.data["observation"], e.data["info"])
+		
+		bt_obs.update_observation(distance)
+		e = yield {waitFor: EventList([forward_action, picked_up_key, dropped_key, opened_door, closed_door, reached_goal, passed_door_left, passed_door_right])}
+		
+		if e in forward_action:
+			continue
+		if e in reached_goal:
+			bt_obs.update_observation(0)
+			return
+		
+		if e in picked_up_key:
+			has_key = True
+		if e in dropped_key:
+			has_key = False
+		if e in opened_door:
+			open_door = True
+		if e in closed_door:
+			open_door = False
+		if e in passed_door_right:
+			right_to_door = True
+		if e in passed_door_left:
+			right_to_door = False
+		
+		
 
 
 observable_bthreads_general = [
