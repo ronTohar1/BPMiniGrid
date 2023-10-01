@@ -22,7 +22,7 @@ def train():
     parser.add_argument("--frame_stack",'-fs', type=int, default=None, help="Number of frames to stack")
     parser.add_argument("--logdir",'-l', type=str, default="./tensorboard/", help="Directory to store the logs in")
     parser.add_argument("--num_episodes",'-n', type=int, default=3_000_000, help="Number of episodes to train for")
-    parser.add_argument("--env_index",'-e', type=int, default=5, help="Index of the environment to train on")
+    parser.add_argument("--env_index",'-e', type=int, default=6, help="Index of the environment to train on")
     parser.add_argument("--learning_rate",'-lr', type=float, default=0.0001, help="Learning rate of the agent")
     parser.add_argument("--network_architecture",'-na', type=str, default="[128,128]", help="Network architecture of the agent")
     parser.add_argument("--features_dim",'-fd', type=int, default=512, help="Dimension of the features extracted from the image")
@@ -64,7 +64,6 @@ def train():
         return create_environment(add_strategies=add_strategies, env_name=env_name, stack_frames=frame_stack, partially_observable=po, generalBT=generalBT)
     
     eval_env = create()
-    print("Observation Space:", eval_env.observation_space)
     env = make_vec_env(create, n_envs=num_cpus, seed=50)
     # eval_env = make_vec_env(create, n_envs=1,seed=50)
 

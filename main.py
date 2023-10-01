@@ -26,7 +26,8 @@ def main():
 
 def main2():
     # env = create_environment("MiniGrid-UnlockPickup-v0", render_mode="human", add_strategies=True, partially_observable=False)
-    env = create_environment("MiniGrid-Unlock-v0", render_mode="human", add_strategies=True, partially_observable=False)
+    env = create_environment("MiniGrid-BlockedUnlockPickup-v0", render_mode="human", add_strategies=True, partially_observable=False)
+    # env = create_environment("MiniGrid-UnlockPickup-v0", render_mode="human", add_strategies=True, partially_observable=False)
     env = ManualControl(env)
     env.start()
 
