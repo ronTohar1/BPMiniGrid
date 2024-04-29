@@ -75,9 +75,11 @@ def agent_is_right_to_door(obs, info):
 	return agent_pos[0] > door_pos[0]
 
 
-def get_distance_from(obs,info,item):
+def get_distance_from(obs,info,item, zero_if_not_found=False):
 	agent_pos = info["objects_location"]["agent"]
 	item_pos = info["objects_location"][item]
+	if zero_if_not_found and item_pos is None:
+		return 0
 	return get_distance(agent_pos, item_pos)
 
 def get_distance_from_key(obs, info):
@@ -93,7 +95,7 @@ def get_distance_from_ball(obs, info):
 	return get_distance_from(obs, info, "ball")
 
 def get_distance_from_goal(obs, info):
-	return get_distance_from(obs, info, "goal")
+	return get_distance_from(obs, info, "goal", zero_if_not_found=True) 
 
 def get_key_position(obs,info):
 	return info["objects_location"]["key"]

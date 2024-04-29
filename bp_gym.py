@@ -89,7 +89,7 @@ class BPGymEnv(ObservationWrapper):
         bthreads, bthreads_progress = create_strategies(observation_shape, self.env_name, add_general_bthreads=self.generalBT)
         bprogram = BProgram(bthreads=bthreads,
                              event_selection_strategy=SimpleEventSelectionStrategy(),
-                            #  listener=PrintBProgramRunnerListener(),
+                             listener=PrintBProgramRunnerListener(),
                              )
         self.bprog.reset(bprogram)
         self.bthreads_progress = bthreads_progress

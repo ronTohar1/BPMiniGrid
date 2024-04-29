@@ -63,6 +63,7 @@ dropped_ball = EventSet(lambda event: event.name == "dropped ball")
 blocked_door = EventSet(lambda event: event.name == "blocked door")
 unblocked_door = EventSet(lambda event: event.name == "unblocked door")
 reached_goal = EventSet(lambda event: event.name == "reached goal")
+update_level_event = EventSet(lambda event: event.name == "update level")
 
 ####################################################################
 
@@ -138,20 +139,41 @@ def unlock_door_bt():
 		if is_door_unlocked(obs, info):
 			yield {request: BEvent("unlocked door", {"observation":obs, "info":info})}
 			return 
+		
+@b_thread
+def unlock_env_level1_bt():
+	while True:
+		yield {waitFor: picked_up_key}
+		yield {waitFor: dropped_key}
+		yield {request: BEvent("update level", {"level":0})}
 
 @b_thread
 def unlock_env_level_bt(bt_obs:BThreadObservation):
+	levels = {
+		0: picked_up_key,
+		1: unlocked_door,
+	}
+	level = 0
+	max_level = max(levels.keys()) + 1
 	while True:
-		bt_obs.update_observation(0)
-		yield {waitFor: picked_up_key}
-		bt_obs.update_observation(1)
-		e = yield {waitFor: EventList([dropped_key, unlocked_door])}
-		if e in unlocked_door:
-			bt_obs.update_observation(2)
-			return
-
+		bt_obs.update_observation(level)
+		e = yield {waitFor: ([levels[level], update_level_event])}
+		if e in update_level_event:
+			level = e.data["level"]
+		else:
+			level += 1
 @b_thread
 def unlock_env_distance_from_objective_bt(bt_obs: BThreadObservation):
+	# levels={0:picked_up_ball, 1:dropped_ball_not_near_door, 2:picked_up_key, 3:dropped_key_not_near_door, 4:unlocked_door}
+	# level = 0
+	# while True:
+	# 	e = yield{waitFor:[levels[level], AnyUpdateLevelEvent()]}
+	# 	if e in levels[level]:
+	# 		level += 1
+	# 		yield{request:updateLevel(level)}
+	# 	else:
+	# 		level = e.data["level"]
+
 	e = yield {waitFor: reset_event}
 	distance = get_distance_from_key(e.data["observation"], e.data["info"])
 	key_on_agent = False
@@ -253,6 +275,29 @@ def unlock_pickup_env_level_bt_complicated(bt_obs:BThreadObservation):
 			bt_obs.update_observation(7)
 			print("Level: ", 7)
 			return
+
+
+####
+
+@b_thread
+def unlock_pickup_env_level_bt_simple(bt_obs: BThreadObservation):
+	levels = {
+		0: picked_up_key,
+		1: unlocked_door,
+		2: passed_door_right,
+		3: picked_up_box,
+	}
+	level = 0
+	max_level = max(levels.keys()) + 1
+	while True:
+		bt_obs.update_observation(level)
+		e = yield {waitFor: ([levels[level], update_level_event])}
+		if e in update_level_event:
+			level = e.data["level"]
+		else:
+			level += 1
+
+####
 		
 
 @b_thread
