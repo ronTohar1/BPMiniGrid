@@ -29,8 +29,10 @@ DIRECTOINS = {
 
 
 
-ROWS = 4
-COLS = 4
+ROWS = 3
+COLS = 3
+
+MAX_STEPS = 200
 
 # defining the agent actions
 agent_actions = [bp.Event(action_name) for action_name in ACTIONS.keys()]
@@ -42,27 +44,6 @@ move_event = bp.EventSet(lambda e: e.name.startswith("Move"))
 class Move(bp.BEvent):
     def __init__(self, i, j):
         super().__init__("Move", {"i": i, "j": j})
-
-
-# b-thread for cells in the environment, triggered when the agent moving to this cell. The b-thread than requests to
-# move to the intended direction or a perpendicular direction randomly
-@bp.thread
-def cell(i, j):
-    while True:
-        yield bp.sync(waitFor=Move(i, j))
-        e = yield bp.sync(waitFor=agent_actions)
-        actions_and_opposite_moves = {"LEFT": Move(i, j+1),"RIGHT": Move(i, j-1),"UP": Move(i+1, j),"DOWN": Move(i-1, j)}
-        # remove the opposite move to the action
-        actions_and_opposite_moves.pop(e.name)
-        possible_moves = list(actions_and_opposite_moves.values())
-        yield bp.sync(request=possible_moves, block=agent_actions)
-
-
-# b-thread for hole locations in the environment, representing terminal states
-@bp.thread
-def hole(i, j):
-    yield bp.sync(waitFor=Move(i, j))
-    yield bp.sync(block=bp.All())  # reached hole terminate the program with a reward of 0
 
 
 # b-thread representing wall locations, blocking moves to this wall
@@ -79,9 +60,21 @@ def start():
 
 # b-thread representing the goal of the environment, providing a terminal state with reward 1
 @bp.thread
-def goal():
-    yield bp.sync(waitFor=Move(ROWS-1, COLS-1), localReward=0)
-    yield bp.sync(block=bp.All(), localReward=1)  # reached goal - terminate the program with a reward of 1
+def goal(i,j):
+    steps = 0
+    e = yield bp.sync(waitFor=bp.EventSetList([Move(i,j), agent_actions]))
+    while e != Move(i,j):
+        steps+=1
+        e = yield bp.sync(waitFor=bp.EventSetList([Move(i,j), agent_actions]))
+    yield bp.sync(block=bp.All(), localReward= 1 - 0.9 ((steps+1) / MAX_STEPS))  # reached goal - terminate the program with a reward of 1
+
+@bp.thread
+def limit_steps():
+    steps = 0
+    while steps < MAX_STEPS:
+        yield bp.sync(block=agent_actions)  # reached goal - terminate the program with a reward of 1
+        steps+=1
+    yield bp.sync(block=bp.All, localReward=0)
 
 
 # b-thread for the agent, requesting actions based on the current location
@@ -102,9 +95,11 @@ def init_bprogram():
          "FFFH",
          "HFFG"]
     """
-    holes_locations = [(1, 1), (1, 3), (2, 3), (3, 0)]
-    return bp.BProgram(bthreads=[start(), agent(), goal()] +
-                                [hole(i, j) if (i, j) in holes_locations else cell(i, j) for i in range(ROWS) for j in range(COLS)] +
+    walls_locations = [(1, 1), (2,1)]
+    goals_location = [(2,2)]
+    return bp.BProgram(bthreads=[start(), agent()] +
+                                [goal(i,j) for (i, j) in goals_location ] +
+                                [wall(i, j) for (i, j) in walls_locations] +
                                 [wall(-1, j) for j in range(COLS)] +
                                 [wall(ROWS, j) for j in range(COLS)] +
                                 [wall(i, -1) for i in range(ROWS)] +
