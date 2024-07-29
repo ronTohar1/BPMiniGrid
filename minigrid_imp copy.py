@@ -20,14 +20,21 @@ ACTIONS = {
 	"toggle": 5,
 	"done": 6 # Should I include this action?
 }
-DIRECTOINS = {
-	"right": 0,
-	"down": 1,
-	"left": 2,
-	"up": 3
+
+
+
+class Orientation:
+    RIGHT = "right"
+    LEFT = "left"
+    DOWN = "down"
+    UP = "up"
+
+ORIENTATION_POS = {
+    Orientation.RIGHT: [0,1],
+    Orientation.LEFT: [0,-1],
+    Orientation.DOWN: [-1,0],
+    Orientation.UP: [1,0],
 }
-
-
 
 ROWS = 3
 COLS = 3
@@ -39,11 +46,36 @@ agent_actions = [bp.Event(action_name) for action_name in ACTIONS.keys()]
 
 # defining the internal events for the environment
 move_event = bp.EventSet(lambda e: e.name.startswith("Move"))
+open_event = bp.EventSet(lambda e: e.name.startswith("Open"))
+rotate_event = bp.EventSet(lambda e: e.name.startswith("Rotate"))
+close_event = bp.EventSet(lambda e: e.name.startswith("Close"))
+pickup_event = bp.EventSet(lambda e: e.name.startswith("Pickup"))
+drop_event = bp.EventSet(lambda e: e.name.startswith("Drop"))
 
+class Open(bp.Event):
+    def __init__(self, i, j):
+        super().__init__("Open", {"i": i, "j": j})
+
+class Close(bp.Event):
+    def __init__(self, i, j):
+        super().__init__("Close", {"i": i, "j": j})
 
 class Move(bp.BEvent):
     def __init__(self, i, j):
         super().__init__("Move", {"i": i, "j": j})
+
+class Rotate(bp.BEvent):
+    def __init__(self, i, j, orientation):
+        super().__init__("Rotate", {"i": i, "j": j, "orientation": orientation})
+
+class Pickup(bp.BEvent):
+    def __init__(self, i, j):
+        super().__init__("Pickup", {"i": i, "j": j})
+
+class Drop(bp.BEvent):
+    def __init__(self, i, j):
+        super().__init__("Drop", {"i": i, "j": j})
+
 
 
 # b-thread representing wall locations, blocking moves to this wall
@@ -54,8 +86,8 @@ def wall(i, j):  # block moves to this wall
 
 # b-thread for the start of the environment run, triggering the initial location of the agent
 @bp.thread
-def start():
-    yield bp.sync(request=Move(0, 0), block=agent_actions)
+def start(i,j, initial_orientation):
+    yield bp.sync(request=Move(i,j), block=agent_actions)
 
 
 # b-thread representing the goal of the environment, providing a terminal state with reward 1
@@ -66,7 +98,7 @@ def goal(i,j):
     while e != Move(i,j):
         steps+=1
         e = yield bp.sync(waitFor=bp.EventSetList([Move(i,j), agent_actions]))
-    yield bp.sync(block=bp.All(), localReward= 1 - 0.9 ((steps+1) / MAX_STEPS))  # reached goal - terminate the program with a reward of 1
+    yield bp.sync(block=bp.All(), localReward= 1 - 0.9 ((steps+1) / MAX_STEPS))  # reached goal - terminate the program with a reward
 
 @bp.thread
 def limit_steps():
@@ -76,14 +108,53 @@ def limit_steps():
         steps+=1
     yield bp.sync(block=bp.All, localReward=0)
 
+@bp.thread
+def door_location_block(i, j):
+    steps = 0
+    while True:
+        yield bp.sync(block=Move(i, j), waitFor=Open(i,j))  # reached goal - terminate the program with a reward of 1
+        yield bp.sync(waitFor=Close(i,j))
+
+@bp.thread
+def door_open_if_infront(i, j, initial_orientation):
+    orientation = initial_orientation
+    location = [i,j]
+    while True:
+        forward_location = [a+b for a,b in zip(location, ORIENTATION_POS[orientation])]
+        if forward_location == [i,j]:
+            e = yield bp.sync(waitFor=bp.EventSetList([move_event, rotate_event])) # no block as we are infront of door
+        else:
+            e = yield bp.sync(block=open_event, waitFor=bp.EventSetList([move_event, rotate_event])) # block open event unless infront of door
+
+        location = [e.data["i"], e.data["j"]]
+        if e in rotate_event:
+            orientation = e.data["orientation"]
+
+@bp.thread
+def door_open_with_key(i, j):
+    while True:
+        yield bp.sync(block=Move(i, j), waitFor=Open(i,j))  # reached goal - terminate the program with a reward of 1
+        yield bp.sync(waitFor=Close(i,j))
+
+
+
 
 # b-thread for the agent, requesting actions based on the current location
 @bp.thread
-def agent():
+def agent_move():
     while True:
         e = yield bp.sync(waitFor=move_event)
         current_location = (e.data["i"], e.data["j"])
         yield bp.sync(request=agent_actions)
+
+# b-thread for the key, requesting picking it up or dropping it and blocking the other action
+@bp.thread
+def key():
+    while True:
+        e = yield bp.sync(waitFor=move_event)
+        current_location = (e.data["i"], e.data["j"])
+        yield bp.sync(request=agent_actions)
+
 
 
 # function to initialize the b-program with the defined b-threads
