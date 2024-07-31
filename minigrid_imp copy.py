@@ -51,6 +51,13 @@ close_event = bp.EventSet(lambda e: e.name.startswith("Close"))
 pickup_event = bp.EventSet(lambda e: e.name.startswith("Pickup"))
 drop_event = bp.EventSet(lambda e: e.name.startswith("Drop"))
 
+agent_actions_event_set = bp.EventSetList([move_event,
+                                           open_event,
+                                           rotate_event,
+                                           close_event,
+                                           pickup_event,
+                                           drop_event,])
+
 class Open(bp.BEvent):
     def __init__(self, i, j):
         super().__init__("Open", {"i": i, "j": j})
@@ -79,6 +86,12 @@ class Drop(bp.BEvent):
 def get_forward_location(current_location, orientation):
     return [a+b for a,b in zip(list(current_location), ORIENTATION_POS[orientation])]
 
+def get_allowed_orientations(current_orientation):
+    if current_orientation == Orientation.UP or current_orientation == Orientation.DOWN:
+        return [Orientation.LEFT, Orientation.RIGHT]
+    else:
+        return [Orientation.UP, Orientation.DOWN]
+
 #################
 ##### Map  ######
 #################
@@ -93,6 +106,39 @@ def wall(i, j):  # block moves to this wall
 def start(i,j):
     yield bp.sync(request=Move(i,j), block=bp.AllExcept(Move(i,j)))
 
+
+# b-thread representing the goal of the environment, providing a terminal state with reward 1
+@bp.thread
+def goal(i,j):
+    steps = 0
+    e = yield bp.sync(waitFor=agent_actions_event_set)
+    while e != Move(i,j):
+        steps+=1
+        e = yield bp.sync(waitFor=agent_actions_event_set)
+    
+    print("Finished with reward ", 1 - 0.9 * ((steps+1) / MAX_STEPS))
+    yield bp.sync(block=bp.All(), localReward= 1 - 0.9 * ((steps+1) / MAX_STEPS))  # reached goal - terminate the program with a reward
+
+# bthread for limiting the number of steps in the environment
+@bp.thread
+def limit_steps():
+    steps = 0
+    while steps < MAX_STEPS:
+        yield bp.sync(waitFor=agent_actions_event_set)  # reached goal - terminate the program with a reward of 1
+        steps+=1
+    yield bp.sync(block=bp.All(), localReward=0)
+
+# Can rotate only 90 degrees
+@bp.thread
+def rotate_90_deg_only(initial_orientation):
+    curr_orientation = initial_orientation
+    while True:
+        possible_orientations = get_allowed_orientations(curr_orientation)
+        blocked_rotate_events = bp.EventSet(lambda e: e in rotate_event and e.data["orientation"] not in possible_orientations)
+        e = yield bp.sync(block=blocked_rotate_events, waitFor=rotate_event)
+        curr_orientation = e.data["orientation"]
+
+# allowed Move event to be forward only according to the orientation of the player
 @bp.thread
 def move_forward_only(initial_orientation):
     orientation = initial_orientation
@@ -102,70 +148,58 @@ def move_forward_only(initial_orientation):
     while True:
         forward_loc = get_forward_location(location, orientation)
         not_forward_event_set = bp.EventSet(lambda e: (e in move_event) and not (e == Move(*forward_loc)))
-        e = yield bp.sync(block=not_forward_event_set, waitFor=[move_event, rotate_event]) # block open event unless infront of door
+        e = yield bp.sync(block=not_forward_event_set, waitFor=bp.EventSetList([move_event, rotate_event]))
         if e in rotate_event:
             orientation = e.data["orientation"]
         location = [e.data["i"], e.data["j"]]
 
-# b-thread representing the goal of the environment, providing a terminal state with reward 1
-@bp.thread
-def goal(i,j):
-    steps = 0
-    e = yield bp.sync(waitFor=[Move(i,j)])
-    while e != Move(i,j):
-        steps+=1
-        e = yield bp.sync(waitFor=[Move(i,j)])
-    yield bp.sync(block=bp.All(), localReward= 1 - 0.9 * ((steps+1) / MAX_STEPS))  # reached goal - terminate the program with a reward
-
-@bp.thread
-def limit_steps():
-    steps = 0
-    while steps < MAX_STEPS:
-        yield bp.sync(waitFor=move_event)  # reached goal - terminate the program with a reward of 1
-        steps+=1
-    yield bp.sync(block=bp.All(), localReward=0)
 
 #################
 ##### Door ######
 #################
 
+# bthread describing a door - blocks objects like a wall untill opened
 @bp.thread
 def door(i, j):
     while True:
         yield bp.sync(block=[Move(i, j), Drop(i,j)], waitFor=Open(i,j)) 
         yield bp.sync(waitFor=Close(i,j))
 
+# bthread for allowing open and closing of a door only at the actual door location
 @bp.thread
 def door_at(i, j):
-    open_door_only = bp.EventSet(lambda e: (e in open_event) and not (e == Open(i,j)))
-    close_door_only = bp.EventSet(lambda e: (e in close_event) and not (e == Close(i,j)))
-    yield bp.sync(block=bp.EventSetList([open_door_only, close_door_only]))
+    open_door_at_other_locations_event_set = bp.EventSet(lambda e: (e in open_event) and not (e == Open(i,j)))
+    close_door_at_other_locations_event_set = bp.EventSet(lambda e: (e in close_event) and not (e == Close(i,j)))
+    yield bp.sync(block=bp.EventSetList([open_door_at_other_locations_event_set, close_door_at_other_locations_event_set]))
 
+# bthread for allowing opening a door only if we are facing it directly
 @bp.thread
 def door_open_if_infront(i,j,initial_orientation):
     orientation = initial_orientation
-    e = yield bp.sync(waitFor=move_event) # initial move event
-    agent_location = [e.data["i"], e.data["j"]]
     door_location = [i,j]
+    e = yield bp.sync(waitFor=move_event) # initial move event
 
     while True:
-        forward_location = get_forward_location(agent_location, orientation)
-        if forward_location == door_location:
-            e = yield bp.sync(waitFor=bp.EventSetList([move_event, rotate_event])) # no block as we are infront of door
-        else:
-            e = yield bp.sync(block=[Open(i,j), Close(i,j)], waitFor=bp.EventSetList([move_event, rotate_event])) # not infront of door
-
         agent_location = [e.data["i"], e.data["j"]]
         if e in rotate_event:
             orientation = e.data["orientation"]
 
+        forward_location = get_forward_location(agent_location, orientation)
+        if forward_location == door_location:
+            e = yield bp.sync(waitFor=bp.EventSetList([move_event, rotate_event])) # no block as we are infront of door
+        else:
+            e = yield bp.sync(block=bp.EventSetList([Open(i,j), Close(i,j)]),
+                                waitFor=bp.EventSetList([move_event, rotate_event])) # not infront of door
+
+
+# bthread enforcing the need of a key to open a door
 @bp.thread
 def door_open_with_key(i, j):
     while True:
         yield bp.sync(block=Open(i, j), waitFor=pickup_event)  
         yield bp.sync(waitFor=drop_event)
 
-
+# bthread for opening and closing a door alternation
 @bp.thread
 def door_alternate_open_close(i, j):
     while True:
@@ -181,19 +215,19 @@ def door_alternate_open_close(i, j):
 @bp.thread
 def key(i,j):
     while True:
-        yield bp.sync(block=[Move(i,j), Drop(i,j)], waitFor=Pickup(i,j))
+        yield bp.sync(block=bp.EventSetList([Move(i,j), Drop(i,j)]), waitFor=Pickup(i,j))
         e = yield bp.sync(waitFor=drop_event)
         i,j = e.data["i"], e.data["j"]
 
 # allow drop and pickup alternatively only
-bp.b_thread
+@bp.thread
 def key_drop_pickup_alternate():
     while True:
         yield bp.sync(block=drop_event, waitFor=pickup_event)
         yield bp.sync(block=pickup_event, waitFor=drop_event)
 
 # allow pickup in key place only
-bp.b_thread
+@bp.thread
 def key_pickup_only(i,j):
     def key_pickup_only_event_set(i,j):
         return  bp.EventSet(lambda e: (e in pickup_event) and not (e == Pickup(i,j)))
@@ -202,30 +236,32 @@ def key_pickup_only(i,j):
         i,j = e.data["i"], e.data["j"]
 
 # blocks pickup if we picked the key up
-bp.b_thread
+@bp.thread
 def key_picked_up(i,j):
     while True:
         e = yield bp.sync(waitFor=Pickup(i,j))
         e = yield bp.sync(block=pickup_event, waitFor=drop_event)
         i,j = e.data["i"], e.data["j"]
 
-bp.b_thread
+# bthread for allowing to pickup a key only if we are infront
+@bp.thread
 def key_pickup_if_infront(i,j, initial_orientation):
     orientation = initial_orientation
-    e = yield bp.sync(waitFor=move_event) # initial move event
-    agent_location = [e.data["i"], e.data["j"]]
     door_location = [i,j]
 
+    e = yield bp.sync(waitFor=move_event) # initial move event
+
     while True:
+        agent_location = [e.data["i"], e.data["j"]]
+        if e in rotate_event:
+            orientation = e.data["orientation"]
         forward_location = get_forward_location(agent_location, orientation)
         if forward_location == door_location:
             e = yield bp.sync(waitFor=bp.EventSetList([move_event, rotate_event])) # no block as we are infront of key
         else:
             e = yield bp.sync(block=Pickup(i,j), waitFor=bp.EventSetList([move_event, rotate_event])) # not infront of key
 
-        agent_location = [e.data["i"], e.data["j"]]
-        if e in rotate_event:
-            orientation = e.data["orientation"]
+        
 
 
 #################
@@ -235,54 +271,163 @@ def key_pickup_if_infront(i,j, initial_orientation):
 # b-thread for the agent, requesting actions based on the current location
 @bp.thread
 def random_agent(orientation):
-
+    e = yield bp.sync(waitFor=bp.EventSetList([move_event, rotate_event]))
     while True:
-        e = yield bp.sync(waitFor=bp.EventSetList([move_event, rotate_event]))
-        i,j = e.data["i"], e.data["j"]
+        if e in move_event or e in rotate_event:
+            i,j = e.data["i"], e.data["j"]
         if e in rotate_event:
-            orientation = orientation
+            orientation = e.data["orientation"]
+            
         forward_loc = get_forward_location([i,j], orientation)
-        events = [ Pickup(*forward_loc), Drop(*forward_loc),
-                   Move(*forward_loc),
-                   Close(*forward_loc), Open(*forward_loc)]
-        yield bp.sync(request=bp.EventSetList(events))      
+        events = [ 
+                #    Pickup(*forward_loc), 
+                #    Drop(*forward_loc),
+                   Move(*forward_loc), 
+                   Rotate(i,j,np.random.choice(get_allowed_orientations(orientation))),
+                #    Close(*forward_loc), Open(*forward_loc)
+                ]
+        e = yield bp.sync(request=events, waitFor=bp.All())     
 
+################
+## Additional ##
+################
+
+
+@bp.thread
+def request_move(priority=1):
+    while True:
+        events = [Move(i,j) for i in range(ROWS) for j in range(COLS)]
+        e = yield bp.sync(request=events, priority=priority)
+
+@bp.thread
+def request_open(priority=1):
+    while True:
+        events = [Open(i,j) for i in range(ROWS) for j in range(COLS)]
+        e = yield bp.sync(request=events, priority=priority)
+
+
+@bp.thread
+def request_close(priority=1):
+    while True:
+        events = [Close(i,j) for i in range(ROWS) for j in range(COLS)]
+        e = yield bp.sync(request=events, priority=priority)
+
+@bp.thread
+def scenario_1():
+    # yield bp.sync(request=Pickup(2,0))
+    yield bp.sync(request=Move(1,0))
+    yield bp.sync(request=Pickup(2,0))
+    yield bp.sync(request=Move(2,0))
+    yield bp.sync(request=Rotate(2,0, Orientation.RIGHT))
+    yield bp.sync(request=Open(2,1))
+    yield bp.sync(request=Close(2,1))
+    yield bp.sync(request=Open(2,1))
+    yield bp.sync(request=Move(2,1))
+
+
+@bp.thread
+def scenario_2():
+    yield bp.sync(request=Move(1,0))
+    yield bp.sync(request=Pickup(2,0))
+    yield bp.sync(request=Move(2,0))
+    yield bp.sync(request=Rotate(2,0, Orientation.RIGHT))
+    yield bp.sync(request=Rotate(2,0, Orientation.DOWN))
+    yield bp.sync(request=Drop(1,0))
+    yield bp.sync(request=Rotate(2,0, Orientation.RIGHT))
+    yield bp.sync(request=Open(2,1))
+    yield bp.sync(request=Move(2,1))
+
+@bp.thread
+def scenario_3():
+    yield bp.sync(request=Move(1,0))
+    yield bp.sync(request=Pickup(2,0))
+    yield bp.sync(request=Move(2,0))
+    yield bp.sync(request=Rotate(2,0, Orientation.RIGHT))
+    yield bp.sync(request=Open(2,1))
+    yield bp.sync(request=Move(2,1))
+    yield bp.sync(request=Move(2,2))
+
+    yield bp.sync(request=Rotate(2,2, Orientation.DOWN))
+    yield bp.sync(request=Rotate(2,2, Orientation.LEFT))
+    yield bp.sync(request=Drop(2,1))
+
+    yield bp.sync(request=Rotate(2,2, Orientation.DOWN))
+
+    yield bp.sync(request=Move(1,2))
+    yield bp.sync(request=Move(0,2))
+
+
+@bp.thread
+def scenario_4():
+    yield bp.sync(request=Move(1,0))
+    yield bp.sync(request=Pickup(2,0))
+    yield bp.sync(request=Move(2,0))
+    yield bp.sync(request=Rotate(2,0, Orientation.RIGHT))
+    yield bp.sync(request=Open(2,1))
+    yield bp.sync(request=Move(2,1))
+    yield bp.sync(request=Move(2,2))
+
+    yield bp.sync(request=Rotate(2,2, Orientation.DOWN))
+
+    yield bp.sync(request=Move(1,2))
+    yield bp.sync(request=Move(0,2))
 
 
 # function to initialize the b-program with the defined b-threads
 def init_bprogram():
-    """
-    returning an instance for the standard 4x4 frozen lake environment:
-        ["SFFF",
-         "FHFH",
-         "FFFH",
-         "HFFG"]
-    """
     walls_extra_locations = [(0, 1), (1,1)]
     goals_location = [(0, COLS-1)]
     key_loc = (2,0)
     door_loc = (2,1)
 
     initial_orientation = Orientation.UP
-    key_bthread=[key(*key_loc), key_drop_pickup_alternate(), key_picked_up(*key_loc), key_pickup_only(*key_loc), 
-                 key_pickup_if_infront(*key_loc, initial_orientation)]
-    door_bthread=[door(*door_loc), door_at(*door_loc), door_alternate_open_close(*door_loc), door_open_if_infront(*door_loc, initial_orientation),
-                  door_open_with_key(*door_loc)]
+    key_bthread=[
+                key(*key_loc), 
+                 key_drop_pickup_alternate(), 
+                 key_picked_up(*key_loc), 
+                 key_pickup_only(*key_loc), 
+                 key_pickup_if_infront(*key_loc, initial_orientation)
+                ]
+    door_bthread=[
+                    door(*door_loc), 
+                  door_at(*door_loc), 
+                  door_alternate_open_close(*door_loc), 
+                  door_open_if_infront(*door_loc, initial_orientation),
+                  door_open_with_key(*door_loc)
+                ]
     
-    map_bthread= [limit_steps(), move_forward_only(Orientation)]
+    map_bthread= [
+                    limit_steps(),
+                   move_forward_only(initial_orientation),
+                   rotate_90_deg_only(initial_orientation),
+                   ]
+    
+    additional_bthreads = [
+                    # random_agent(initial_orientation),
+                #    request_move(6),
+                #    request_open(5),
+                #    request_close(7),
+                # scenario_1(),
+                # scenario_2(),
+                # scenario_3(),
+                scenario_4(),
+
+    ]
 
     return bp.BProgram(bthreads=
-                       [start(0,0), random_agent(initial_orientation)] +
-                    #             door_bthread +
-                    #             key_bthread + 
-                    #             map_bthread +
+                       [start(0,0), ] +
+                                door_bthread +
+                                key_bthread + 
+                                map_bthread +
+                                additional_bthreads +
                                 [goal(i,j) for (i, j) in goals_location] +
                                 [wall(i, j) for (i, j) in walls_extra_locations] +
                                 [wall(-1, j) for j in range(COLS)] +
                                 [wall(ROWS, j) for j in range(COLS)] +
                                 [wall(i, -1) for i in range(ROWS)] +
                                 [wall(i, COLS) for i in range(ROWS)],
-                       event_selection_strategy=bp.SimpleEventSelectionStrategy(),
+                    #    event_selection_strategy=bp.SimpleEventSelectionStrategy(),
+                       event_selection_strategy=bp.PriorityBasedEventSelectionStrategy(),
                        listener=bp.PrintBProgramRunnerListener())
 
 bprogram = init_bprogram()
