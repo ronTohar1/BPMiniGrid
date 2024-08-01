@@ -419,7 +419,7 @@ def init_bprogram():
                                 door_bthread +
                                 key_bthread + 
                                 map_bthread +
-                                additional_bthreads +
+                                # additional_bthreads +
                                 [goal(i,j) for (i, j) in goals_location] +
                                 [wall(i, j) for (i, j) in walls_extra_locations] +
                                 [wall(-1, j) for j in range(COLS)] +
@@ -435,14 +435,14 @@ bprogram.run()
 
 
 
-# # defining the observation space for the environment based on the current_location variable of the agent b-thread
-# class FrozenLakeObservationSpace(BPObservationSpace):
-#     def __init__(self, dim):
-#         super().__init__([dim], np.int64, None)
-#     def bp_state_to_gym_space(self, bthreads_states):
-#         agent_bthread_statement = [x for x in bthreads_states if "current_location" in x.get("locals", {})][0]
-#         current_location = agent_bthread_statement["locals"]["current_location"]
-#         return np.asarray([current_location[0]*COLS + current_location[1]], dtype=self.dtype)
+# defining the observation space for the environment based on the current_location variable of the agent b-thread
+class DoorKeyObservationSpace(BPObservationSpace):
+    def __init__(self, dim):
+        super().__init__([dim], np.int64, None)
+    def bp_state_to_gym_space(self, bthreads_states):
+        agent_bthread_statement = [x for x in bthreads_states if "current_location" in x.get("locals", {})][0]
+        current_location = agent_bthread_statement["locals"]["current_location"]
+        return np.asarray([current_location[0]*COLS + current_location[1]], dtype=self.dtype)
 
 
 # # initialize environment with the defined b-program generator, observation space, and reward function
