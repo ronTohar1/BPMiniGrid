@@ -66,7 +66,7 @@ reached_goal = EventSet(lambda event: event.name == "reached goal")
 
 ####################################################################
 
-@b_thread
+@thread
 def count_left_turns(bt_obs: BThreadObservation):
 	turns_left = 0
 	while True:
@@ -77,7 +77,7 @@ def count_left_turns(bt_obs: BThreadObservation):
 		else:
 			turns_left = 0
 
-@b_thread
+@thread
 def count_right_turns(bt_obs:BThreadObservation):
 	turns_right = 0
 	while True:
@@ -91,7 +91,7 @@ def count_right_turns(bt_obs:BThreadObservation):
 ####################################################################
 ####################################################################
 
-@b_thread
+@thread
 def pick_up_key_bt():
 	# e = yield {waitFor: reset_event}
 	# previous_obs, previous_info = e.data["observation"], e.data["info"]
@@ -109,7 +109,7 @@ def pick_up_key_bt():
 			yield {request: BEvent("picked up key", {"observation":obs, "info":info})}
 			yield {waitFor: dropped_key}
 
-@b_thread
+@thread
 def drop_key_bt():
 	yield {waitFor: picked_up_key}
 	while True:
@@ -119,7 +119,7 @@ def drop_key_bt():
 				yield {request: BEvent("dropped key", {"observation":obs, "info":info})}
 				yield {waitFor: picked_up_key}
 
-@b_thread
+@thread
 def unlock_door_bt():
 	# while True:
 	# 	yield {waitFor: picked_up_key}
@@ -139,7 +139,7 @@ def unlock_door_bt():
 			yield {request: BEvent("unlocked door", {"observation":obs, "info":info})}
 			return 
 
-@b_thread
+@thread
 def unlock_env_level_bt(bt_obs:BThreadObservation):
 	while True:
 		bt_obs.update_observation(0)
@@ -150,7 +150,7 @@ def unlock_env_level_bt(bt_obs:BThreadObservation):
 			bt_obs.update_observation(2)
 			return
 
-@b_thread
+@thread
 def unlock_env_distance_from_objective_bt(bt_obs: BThreadObservation):
 	e = yield {waitFor: reset_event}
 	distance = get_distance_from_key(e.data["observation"], e.data["info"])
@@ -175,7 +175,7 @@ def unlock_env_distance_from_objective_bt(bt_obs: BThreadObservation):
 
 ####################################################################
 
-@b_thread
+@thread
 def open_door_bt():
 	while True:
 		e = yield {waitFor: unlocked_door}
@@ -188,7 +188,7 @@ def open_door_bt():
 					yield {request: BEvent("opened door", {"observation":e.data["observation"], "info":e.data["info"]})}
 					break
 
-@b_thread
+@thread
 def close_door_bt():
 	while True:
 		yield {waitFor: opened_door}
@@ -198,7 +198,7 @@ def close_door_bt():
 				yield {request: BEvent("closed door", {"observation":e.data["observation"], "info":e.data["info"]})}
 				break
 
-@b_thread
+@thread
 def picked_up_box_bt():
 	while True:
 		e = yield {waitFor: EventList([pick_up_action, toggle_action])}
@@ -206,7 +206,7 @@ def picked_up_box_bt():
 		if get_box_position(obs,info) is None:
 			yield {request: BEvent("picked up box", {"observation":obs, "info":info})}
 
-@b_thread
+@thread
 def passed_door_bt():
 	left_to_door = True
 	while True:
@@ -219,7 +219,7 @@ def passed_door_bt():
 			left_to_door = True
 			yield {request: BEvent("passed door left", {"observation":obs, "info":info})}
 
-@b_thread
+@thread
 def unlock_pickup_env_level_bt_complicated(bt_obs:BThreadObservation):
 	has_key, open_door, right_to_door, door_is_unlocked = False, False, False, False
 	level = 0
@@ -255,7 +255,7 @@ def unlock_pickup_env_level_bt_complicated(bt_obs:BThreadObservation):
 			return
 		
 
-@b_thread
+@thread
 def unlock_pickup_env_level_bt(bt_obs:BThreadObservation):
 	has_key, door_is_unlocked = False, False
 	level = 0
@@ -284,7 +284,7 @@ def unlock_pickup_env_level_bt(bt_obs:BThreadObservation):
 			# print("Level: ", 4)
 			return
 		
-# @b_thread
+# @thread
 # def unlock_pickup_env_distance_from_objective_bt_complicated(bt_obs: BThreadObservation):
 # 	e = yield {waitFor: reset_event}
 # 	has_key, open_door, right_to_door, door_is_unlocked = False, False, False, False
@@ -324,7 +324,7 @@ def unlock_pickup_env_level_bt(bt_obs:BThreadObservation):
 # 			return
 
 
-@b_thread
+@thread
 def unlock_pickup_env_distance_from_objective_bt(bt_obs: BThreadObservation):
 	e = yield {waitFor: reset_event}
 	has_key, door_is_unlocked = False, False
@@ -355,7 +355,7 @@ def unlock_pickup_env_distance_from_objective_bt(bt_obs: BThreadObservation):
 
 ####################################################################
 
-@b_thread
+@thread
 def pick_up_ball_bt():
 	while True:
 		e = yield {waitFor: pick_up_action}
@@ -364,7 +364,7 @@ def pick_up_ball_bt():
 			yield {request: BEvent("picked up ball", {"observation":obs, "info":info})}
 			yield {waitFor : dropped_ball}
 
-@b_thread
+@thread
 def drop_ball_bt():
 	yield {waitFor: picked_up_ball}
 	while True:
@@ -374,7 +374,7 @@ def drop_ball_bt():
 				yield {request: BEvent("dropped ball", {"observation":obs, "info":info})}
 				yield {waitFor: picked_up_ball}
 
-@b_thread
+@thread
 def unblocked_door_bt():
 	e = yield{waitFor: reset_event}
 	initial_ball_pos = get_ball_position(e.data["observation"], e.data["info"])
@@ -387,7 +387,7 @@ def unblocked_door_bt():
 			yield {waitFor: blocked_door}
 		
 
-@b_thread
+@thread
 def blocked_door_bt():
 	e = yield{waitFor: reset_event}
 	initial_ball_pos = get_ball_position(e.data["observation"], e.data["info"])
@@ -400,7 +400,7 @@ def blocked_door_bt():
 			yield {request: BEvent("blocked door", {"observation":obs, "info":info})}
 			yield {waitFor: unblocked_door}
 
-@b_thread
+@thread
 def bup_env_level_bt(bt_obs:BThreadObservation):
 	has_key, door_is_unlocked, has_ball, door_is_blocked = False, False, False, True
 	level = 0
@@ -430,7 +430,7 @@ def bup_env_level_bt(bt_obs:BThreadObservation):
 			bt_obs.update_observation(6)
 			return
 	
-@b_thread
+@thread
 def bup_env_distance_bt(bt_obs: BThreadObservation):
 	e = yield {waitFor: reset_event}
 	has_key, door_is_unlocked, has_ball, door_is_blocked = False, False, False, True
@@ -474,7 +474,7 @@ def bup_env_distance_bt(bt_obs: BThreadObservation):
 
 ####################################################################
 
-@b_thread
+@thread
 def reached_goal_bt():
 	e = yield {waitFor: reset_event}
 	goal_pos = get_goal_position(e.data["observation"], e.data["info"])
@@ -485,7 +485,7 @@ def reached_goal_bt():
 			yield {request: BEvent("reached goal", {"observation":obs, "info":info})}
 			return
 		
-@b_thread
+@thread
 def exp_doorkey_env_level_bt(bt_obs: BThreadObservation):
 	while True:
 		yield {waitFor: picked_up_key}
@@ -495,7 +495,7 @@ def exp_doorkey_env_level_bt(bt_obs: BThreadObservation):
 			if e in unlocked_door:
 				pass
 
-@b_thread
+@thread
 def doorkey_env_level_bt(bt_obs: BThreadObservation):
 	has_key, open_door, right_to_door, door_is_unlocked = False, False, False, False
 	while True:
@@ -526,6 +526,7 @@ def doorkey_env_level_bt(bt_obs: BThreadObservation):
 		if e in passed_door_left:
 			right_to_door = False
 		
+@thread
 def doorkey_env_distance_bt(bt_obs: BThreadObservation):
 	e = yield {waitFor: reset_event}
 	distance = get_distance_from_key(e.data["observation"], e.data["info"])

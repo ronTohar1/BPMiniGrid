@@ -32,7 +32,8 @@ def train():
     args = parser.parse_args()
 
 
-    add_strategies = args.add_bp
+    # add_strategies = args.add_bp
+    add_strategies = True
     name = args.name_addition
     frame_stack = args.frame_stack
     tensorlog = args.logdir
