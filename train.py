@@ -7,7 +7,7 @@ from minigrid_feature_extractor_3d import MinigridFeaturesExtractor3D
 import gymnasium as gym
 from bp_gym import BPGymEnv
 from create_environment import create_environment
-from sb3_contrib import RecurrentPPO
+from sb3_contrib import RecurrentPPO, QRDQN
 
 from stable_baselines3.common.env_util import make_vec_env
 import argparse
@@ -18,11 +18,11 @@ def train():
     parser = argparse.ArgumentParser()
     parser.add_argument("--add_bp","-bp", action="store_true", help="Add BP strategies to the environment")
     parser.add_argument("--name_addition","-name", type=str, default="", help="Addition to the model name")
-    parser.add_argument("--agent_class",'--a', choices=['ppo','dqn','a2c','rppo'], default='ppo', help="Choose the agent to train")
+    parser.add_argument("--agent_class",'--a', choices=['ppo','dqn','a2c','rppo', 'qrdqn'], default='ppo', help="Choose the agent to train")
     parser.add_argument("--frame_stack",'-fs', type=int, default=None, help="Number of frames to stack")
     parser.add_argument("--logdir",'-l', type=str, default="./tensorboard/", help="Directory to store the logs in")
     parser.add_argument("--num_episodes",'-n', type=int, default=3_000_000, help="Number of episodes to train for")
-    parser.add_argument("--env_index",'-e', type=int, default=6, help="Index of the environment to train on")
+    parser.add_argument("--env_index",'-e', type=int, default=1, help="Index of the environment to train on")
     parser.add_argument("--learning_rate",'-lr', type=float, default=0.0001, help="Learning rate of the agent")
     parser.add_argument("--network_architecture",'-na', type=str, default="[128,128]", help="Network architecture of the agent")
     parser.add_argument("--features_dim",'-fd', type=int, default=512, help="Dimension of the features extracted from the image")
@@ -45,7 +45,7 @@ def train():
     po = args.partial_obs
     generalBT = args.generalBT
 
-    model = {"ppo":PPO,"dqn":DQN,"a2c":A2C,"rppo":RecurrentPPO}[args.agent_class]
+    model = {"ppo":PPO,"dqn":DQN,"a2c":A2C,"rppo":RecurrentPPO, "qrdqn": QRDQN}[args.agent_class]
 
 
     env_names = ["DoorKey-6x6-v0",
