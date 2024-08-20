@@ -96,7 +96,7 @@ class OnlyImageObservation(ObservationWrapper):
         return observation["image"]
 
 
-
+# what is this?
 class ChangeAxisWrapper(ObservationWrapper):
     def __init__(self, env: Env, **kwargs):
         super().__init__(env,**kwargs)

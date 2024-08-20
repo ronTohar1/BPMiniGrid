@@ -23,7 +23,7 @@ def create_environment(env_name="MiniGrid-BlockedUnlockPickup-v0", render_mode=N
     env = ImgObsWrapper(env)
     env = BPGymEnv(env, add_strategies=add_strategies, as_image=True, axis=2, generalBT=generalBT)
     
-    env = ChangeAxisWrapper(env)
+    env = ChangeAxisWrapper(env) # why did I do this? A: I guess for the agent or something
 
     if stack_frames:
         env = FrameStack(env, stack_frames)
