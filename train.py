@@ -8,6 +8,8 @@ import gymnasium as gym
 from bp_gym import BPGymEnv
 from create_environment import create_environment
 from sb3_contrib import RecurrentPPO
+import wandb
+
 
 from stable_baselines3.common.env_util import make_vec_env
 import argparse
@@ -107,10 +109,19 @@ def train():
     #             target_update_interval=500,)
 
 
+    run = wandb.init(
+        project=args.exp_name,
+        config=args.__dict__,
+        sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
+        monitor_gym=True,  # auto-upload the videos of agents playing the game
+    )
+
     agent = model(policy, env, verbose=verbose, tensorboard_log=tensorlog, policy_kwargs=policy_kwargs, seed=seed
                   , learning_rate=lr) 
     # agent.learn(num_episodes, callback=eval_callback, log_interval=1, tb_log_name=model_name)
     print(agent.policy)
+    run.finish()
+
 
 if __name__ == '__main__':
     train()
